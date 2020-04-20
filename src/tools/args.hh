@@ -28,7 +28,11 @@
 #ifndef TOOLS_ARGS_H
 #define TOOLS_ARGS_H
 
+#ifdef _WIN32
+#include "getopt_win.h"
+#else
 #include <getopt.h>
+#endif
 #include <algorithm>
 #include <map>
 #include <iomanip>

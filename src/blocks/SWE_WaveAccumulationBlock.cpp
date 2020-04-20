@@ -32,6 +32,7 @@
 #include <cassert>
 #include <string>
 #include <limits>
+#include <algorithm>
 
 #ifdef LOOP_OPENMP
 #include <omp.h>

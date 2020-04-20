@@ -7,4 +7,5 @@ target_sources(swe
     ProgressBar.hh
     args.hh
     help.hh
+    $<$<STREQUAL:$<PLATFORM_ID>,"Windows">:getopt_win.h>
 )

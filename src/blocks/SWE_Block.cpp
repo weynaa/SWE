@@ -43,6 +43,7 @@
 #include <cassert>
 #include <limits>
 #include <type_traits>
+#include <algorithm>
 
 // gravitational acceleration
 const float SWE_Block::g = 9.81f;

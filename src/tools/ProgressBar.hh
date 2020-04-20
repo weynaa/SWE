@@ -35,8 +35,16 @@
 #include <iostream>
 #include <limits>
 
-#include <unistd.h>
-#include <sys/ioctl.h>
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+
+//#include <unistd.h>
+//#include <sys/ioctl.h>
 
 namespace tools
 {
