@@ -75,6 +75,11 @@ target_sources(swe-single-node
     
 target_link_libraries(swe-single-node PUBLIC swe)
 
+add_executable(swe-starpu)
+target_sources(swe-starpu PRIVATE src/examples/swe_starpu.cpp)
+target_link_libraries(swe-starpu PUBLIC swe)
+
+
 if (MPI_FOUND)
     add_executable(swe-mpi)
     target_sources(swe-mpi 
@@ -103,7 +108,7 @@ if (OpenMP_FOUND AND ENABLE_VECTORIZATION)
         $<$<CXX_COMPILER_ID:Clang>: -march=native -fno-math-errno>
         $<$<CXX_COMPILER_ID:AppleClang>: -march=native -fno-math-errno>
         $<$<CXX_COMPILER_ID:Intel>: -xHost>
-        $<$<CXX_COMPILER_ID:GNU>: -march=native -ffast-math -fassociative-math>
+        $<$<CXX_COMPILER_ID:GNU>: >
     )
     if(ENABLE_VECTORIZATION_VERBOSE)
         target_compile_options(swe PRIVATE
@@ -123,6 +128,7 @@ endif()
 
 target_include_directories(swe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe-single-node PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(swe-starpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if (ENABLE_NETCDF AND NETCDF_FOUND)
     message(STATUS "Enabled NetCDF writer")
@@ -138,7 +144,7 @@ endif()
 
 target_compile_options(swe PUBLIC 
     $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-Wall -Wextra -Wno-unused-parameter -g -pedantic>
-    $<$<COMPILE_LANGUAGE:CUDA>:-g>
+    $<$<COMPILE_LANGUAGE:CUDA>:>
 )
 
 #target_compile_options(swe PUBLIC <$<$ >:-g>) # -Wextra -pedantic)
@@ -148,6 +154,7 @@ set_property(TARGET swe PROPERTY CXX_STANDARD 11)
 set_property(TARGET swe PROPERTY CUDA_STANDARD 11)
 set_property(TARGET swe-mpi PROPERTY CXX_STANDARD 11)
 set_property(TARGET swe-single-node PROPERTY CXX_STANDARD 11)
+set_property(TARGET swe-starpu PROPERTY CXX_STANDARD 11)
 
 # Export compiler commands for use in YouCompleteMe
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
