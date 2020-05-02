@@ -1,5 +1,6 @@
 build/build_SWE_*
 build/SWE_*
+build/*
 msvc/
 documentation/doxy/
 build-*

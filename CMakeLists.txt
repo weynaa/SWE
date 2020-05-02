@@ -32,15 +32,7 @@ find_package(MPI)
 
 find_package(PkgConfig)
 
-pkg_check_modules(STARPU REQUIRED starpu-1.3)
-if (STARPU_FOUND)
-    include_directories (${STARPU_INCLUDE_DIRS})
-    link_directories    (${STARPU_STATIC_LIBRARY_DIRS})
-    link_libraries      (${STARPU_STATIC_LIBRARIES})
-    message(STATUS "StarPU 1.3 found")
-else (STARPU_FOUND)
-    message(FATAL_ERROR "StarPU not found")
-endif()
+
 
 
 add_executable(swe-single-node)
@@ -75,9 +67,18 @@ target_sources(swe-single-node
     
 target_link_libraries(swe-single-node PUBLIC swe)
 
-add_executable(swe-starpu)
-target_sources(swe-starpu PRIVATE src/examples/swe_starpu.cpp)
-target_link_libraries(swe-starpu PUBLIC swe)
+pkg_check_modules(STARPU REQUIRED starpu-1.3)
+if (STARPU_FOUND)
+    add_executable(swe-starpu)
+    target_sources(swe-starpu PRIVATE src/examples/swe_starpu.cu)
+    target_include_directories (swe-starpu PUBLIC ${STARPU_INCLUDE_DIRS})
+    target_link_directories    (swe-starpu PUBLIC ${STARPU_STATIC_LIBRARY_DIRS})
+    target_link_libraries      (swe-starpu PUBLIC swe ${STARPU_STATIC_LIBRARIES})
+    message(STATUS "StarPU 1.3 found")
+else (STARPU_FOUND)
+    message(STATUS "StarPU not found")
+endif()
+
 
 
 if (MPI_FOUND)
