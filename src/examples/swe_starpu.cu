@@ -156,6 +156,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    printf("StarPU workers:\n");
     printf("%d CPU cores\n", starpu_worker_get_count_by_type(STARPU_CPU_WORKER));
     printf("%d CUDA GPUs\n", starpu_worker_get_count_by_type(STARPU_CUDA_WORKER));
     printf("%d OpenCL GPUs\n", starpu_worker_get_count_by_type(STARPU_OPENCL_WORKER));
@@ -194,8 +195,11 @@ int main(int argc, char **argv) {
 
     starpu_data_unregister(dataHandle);
 
-    for (int i = l_nX*l_nY-4; i < l_nX*l_nY; ++i) {
-        printf("%f ", grid_Data[i]);
+    for (int i = 0; i < l_nX*l_nY; ++i) {
+        if(grid_Data[i] != factor)
+        {
+            printf("error");
+        }
     }
     starpu_shutdown();
     return 0;
