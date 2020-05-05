@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
+  <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
+    <generated>
+      <config projectName="SWE" targetName="swe-mpi" />
+      <config projectName="SWE" targetName="swe-starpu" />
+      <config projectName="SWE" targetName="swe" />
+      <config projectName="SWE" targetName="swe-single-node" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/testkernels.cu" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/testkernels.cuh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda_asagi_openGL.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda_openGL.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi_asagi.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi_with_cuda.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_intel_mpi.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/options/SWE_intel_mpi_vectorized.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cu" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1bOiNKElZYyK0VoHGBa6UZtZxUD" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="cf.first.check.clang-format" value="false" />
+    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
+  </component>
+  <component name="RunManager" selected="CMake Application.swe-starpu">
+    <configuration name="swe-mpi" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-mpi" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-mpi">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="swe-single-node" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-single-node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-single-node">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="swe-starpu" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 10000 -y 10000 -o testout" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-starpu" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-starpu">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="swe" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.swe" />
+      <item itemvalue="CMake Application.swe-mpi" />
+      <item itemvalue="CMake Application.swe-single-node" />
+      <item itemvalue="CMake Application.swe-starpu" />
+    </list>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="" />
+      <created>1588509499740</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1588509499740</updated>
+      <workItem from="1588509502869" duration="2022000" />
+      <workItem from="1588597588815" duration="1112000" />
+      <workItem from="1588694768933" duration="6891000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="2" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1588510061944">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1588510061944" />
+    <state width="440" height="506" key="DebuggerActiveHint" timestamp="1588701946938">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="440" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1588701946938" />
+    <state width="1874" height="273" key="GridCell.Tab.0.bottom" timestamp="1588702133333">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="273" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133333" />
+    <state width="1874" height="273" key="GridCell.Tab.0.center" timestamp="1588702133332">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="273" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133332" />
+    <state width="1874" height="273" key="GridCell.Tab.0.left" timestamp="1588702133328">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="273" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133328" />
+    <state width="1874" height="273" key="GridCell.Tab.0.right" timestamp="1588702133333">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="273" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133333" />
+    <state width="1874" height="338" key="GridCell.Tab.1.bottom" timestamp="1588702131657">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="338" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
+    <state width="1874" height="338" key="GridCell.Tab.1.center" timestamp="1588702131657">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="338" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
+    <state width="1874" height="338" key="GridCell.Tab.1.left" timestamp="1588702131657">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="338" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
+    <state width="1874" height="338" key="GridCell.Tab.1.right" timestamp="1588702131657">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1874" height="338" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
+    <state x="461" y="155" key="SettingsEditor" timestamp="1588509584006">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="461" y="155" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1588509584006" />
+    <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1588701283760">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1920.1040@0.0.1920.1040" timestamp="1588701283760" />
+    <state x="623" y="229" width="672" height="160" key="search.everywhere.popup" timestamp="1588696679332">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="623" y="229" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1588696679332" />
+    <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog" timestamp="1588695013534">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1588695013534" />
+  </component>
+</project>

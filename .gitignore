@@ -1,6 +1,7 @@
 build/build_SWE_*
 build/SWE_*
 build/*
+cmake-build-*
 msvc/
 documentation/doxy/
 build-*

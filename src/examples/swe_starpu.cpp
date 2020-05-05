@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <string>
 #include <iostream>
+#include <mpi.h>
 
 #include "blocks/SWE_Block.hh"
 
@@ -54,7 +55,10 @@
 
 #define STARPU_USE_CUDA
 #define STARPU_USE_MPI
-#include <starpu.h>
+#include <starpu_mpi.h>
+
+#include "swe-starpu/testkernels.cuh"
+
 
 static void test_cpu_func(void *buffers[], void *_args) {
     float *factor = (float *) _args;
@@ -73,30 +77,7 @@ static void test_cpu_func(void *buffers[], void *_args) {
 }
 
 
-static void __global__ test_cuda_kernel(float *val, float factor, size_t nx, size_t ny, size_t stride) {
-    const size_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t y = blockIdx.y * blockDim.y + threadIdx.y;
-    if (x < nx && y < ny) {
-        val[y*stride+x] *= factor;
-    }
-}
 
-static void test_cuda_func(void *buffers[], void *args) {
-    float *factor = (float *) args;
-    /* length of the vector */
-    unsigned nx = STARPU_MATRIX_GET_NX(buffers[0]);
-    unsigned ny = STARPU_MATRIX_GET_NY(buffers[0]);
-    unsigned offset = STARPU_MATRIX_GET_OFFSET(buffers[0]);
-    unsigned row_stride = STARPU_MATRIX_GET_LD(buffers[0]);
-    const auto n = nx*ny;
-    /* local copy of the vector pointer */
-    float *val = (float *) STARPU_MATRIX_GET_PTR(buffers[0]);
-    dim3 threads_per_block = {8,8};
-    dim3 nblocks = {(nx + threads_per_block.x - 1) / threads_per_block.x,
-                    (ny + threads_per_block.y - 1) / threads_per_block.y};
-    test_cuda_kernel<<<nblocks, threads_per_block, 0, starpu_cuda_get_local_stream()>>>(val, *factor, nx,ny,row_stride);
-    cudaStreamSynchronize(starpu_cuda_get_local_stream());
-}
 
 static starpu_codelet test_codelet = []() {
     //Only C++20 has designated initializers
@@ -109,6 +90,11 @@ static starpu_codelet test_codelet = []() {
     return codelet;
 }();
 
+
+int dataDistribution2D(int size, int x, int y)
+{
+    return ((int)(x/std::sqrt(size)+(y/std::sqrt(size))*std::sqrt(size)))%size;
+}
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
@@ -150,57 +136,71 @@ int main(int argc, char **argv) {
     starpu_conf_init(&conf);
     //conf.ncuda=0;
     //conf.nopencl=0;
-    auto starpuret = starpu_init(&conf);
+    auto starpuret = starpu_mpi_init_conf(&argc,&argv,1,MPI_COMM_WORLD,&conf);
+    int rank, worldSize;
+    starpu_mpi_comm_rank(MPI_COMM_WORLD,&rank);
+    starpu_mpi_comm_size(MPI_COMM_WORLD,&worldSize);
+
+
     if (starpuret != 0) {
         std::cerr << "Could not initialize StarPU!\n";
         return 1;
     }
 
-    printf("StarPU workers:\n");
-    printf("%d CPU cores\n", starpu_worker_get_count_by_type(STARPU_CPU_WORKER));
-    printf("%d CUDA GPUs\n", starpu_worker_get_count_by_type(STARPU_CUDA_WORKER));
-    printf("%d OpenCL GPUs\n", starpu_worker_get_count_by_type(STARPU_OPENCL_WORKER));
-
-    const auto grid_Data = (float *) malloc(sizeof(float) * l_nX * l_nY);
+    const auto grid_Data = new float[l_nX * l_nY];
     for (int i = 0; i < l_nX*l_nY; ++i) {
         grid_Data[i] = 1.0f;
     }
     starpu_data_handle_t dataHandle;
     starpu_matrix_data_register(&dataHandle, STARPU_MAIN_RAM, (uintptr_t) grid_Data, l_nX, l_nX, l_nY,
                                 sizeof(grid_Data[0]));
+
+    starpu_data_filter dataFilter = {};
+    dataFilter.filter_func = starpu_matrix_filter_block;
+    dataFilter.nchildren = worldSize;
+    starpu_data_partition(dataHandle, &dataFilter);
+
+    starpu_data_handle_t partHandle = starpu_data_get_sub_data(dataHandle,1,rank);
+    starpu_mpi_data_register(partHandle,rank,rank);
+
     const float factor = 2.12116315;
 
-    constexpr int NTASKS = 10;
+/*    constexpr int NTASKS = 10;
     starpu_data_filter dataFilter = {};
     dataFilter.filter_func = starpu_matrix_filter_block;
     dataFilter.nchildren = NTASKS;
-    starpu_data_partition(dataHandle, &dataFilter);
+    starpu_data_partition(dataHandle, &dataFilter);*/
 
-    for(int i = 0; i < starpu_data_get_nb_children(dataHandle);++i)
-    {
-        starpu_data_handle_t partHandle = starpu_data_get_sub_data(dataHandle,1,i);
-        auto task = starpu_task_create();
+    //for(int i = 0; i < starpu_data_get_nb_children(dataHandle);++i)
 
-        task->synchronous = 1;
-        task->cl = &test_codelet;
-        task->handles[0] = partHandle;
-        task->cl_arg = (void *) &factor;
-        task->cl_arg_size = sizeof(factor);
+/*            starpu_data_handle_t partHandle = starpu_data_get_sub_data(dataHandle, 1, i);
+            auto task = starpu_task_create();
 
-        starpu_task_submit(task);
-    }
-    for(int i = 0; i < starpu_data_get_nb_children(dataHandle);++i){
+            task->cl = &test_codelet;
+            task->handles[0] = partHandle;
+            task->cl_arg = (void *) &factor;
+            task->cl_arg_size = sizeof(factor);
+
+            starpu_task_submit(task);*/
+            starpu_mpi_task_insert(MPI_COMM_WORLD, &test_codelet,
+                    STARPU_VALUE, &factor,sizeof(factor),
+                    STARPU_RW, partHandle,
+                    0);
+
+    starpu_task_wait_for_all();
+/*    for(int i = 0; i < starpu_data_get_nb_children(dataHandle);++i){
         starpu_data_unpartition(dataHandle,i);
-    }
+    }*/
 
-    starpu_data_unregister(dataHandle);
 
-    for (int i = 0; i < l_nX*l_nY; ++i) {
+ /*   for (int i = 0; i < l_nX*l_nY; ++i) {
         if(grid_Data[i] != factor)
         {
             printf("error");
         }
-    }
-    starpu_shutdown();
+    }*/
+
+    starpu_mpi_shutdown();
+    delete[] grid_Data;
     return 0;
 }
