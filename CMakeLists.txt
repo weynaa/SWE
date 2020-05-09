@@ -5,6 +5,7 @@ project(SWE LANGUAGES CXX)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 option(ENABLE_CUDA                  "Enable CUDA-accelerated SWE_Blocks" OFF)
+option(ENABLE_OPENCL                "Enable OpenCL in StarPU" ON)
 option(ENABLE_NETCDF                "Enable Output using NetCDF" ON)
 option(ENABLE_OPENMP                "Enable shared-memory parallelization of intra-block iterations using OpenMP" ON)
 option(ENABLE_VECTORIZATION         "Enable auto-vectorization of the block iteration on the CPU (only supported solvers), and in Release Mode." OFF)
@@ -60,6 +61,11 @@ if (ENABLE_CUDA)
     add_subdirectory(src/blocks/cuda)
 endif()
 
+if(ENABLE_OPENCL)
+    find_package(OpenCL REQUIRED)
+    message(STATUS "OpenCL version ${OPENCL_VERSION}")
+endif()
+
 target_sources(swe-single-node 
     PRIVATE
     src/examples/swe_simple.cpp
@@ -68,12 +74,22 @@ target_sources(swe-single-node
 target_link_libraries(swe-single-node PUBLIC swe)
 
 pkg_check_modules(STARPU REQUIRED starpu-1.3 starpumpi-1.3)
-if (STARPU_FOUND AND ENABLE_CUDA AND MPI_FOUND)
-    add_executable(swe-starpu)
-    target_sources(swe-starpu PRIVATE src/examples/swe_starpu.cpp src/examples/swe-starpu/testkernels.cu)
-    target_include_directories (swe-starpu PUBLIC ${STARPU_INCLUDE_DIRS} PRIVATE ${MPI_CXX_INCLUDE_DIRS})
+if (STARPU_FOUND)
+    add_executable(swe-starpu
+            src/examples/swe_starpu.cpp
+            src/examples/swe-starpu/SWE_StarPU_Block.h
+            src/examples/swe-starpu/SWE_StarPU_Block.cpp
+
+            )
+    if(ENABLE_CUDA)
+        target_sources(swe-starpu PRIVATE src/examples/swe-starpu/testkernels.cu)
+    endif()
+    target_include_directories (swe-starpu PUBLIC ${STARPU_INCLUDE_DIRS}})
     target_link_directories    (swe-starpu PUBLIC ${STARPU_STATIC_LIBRARY_DIRS})
-    target_link_libraries      (swe-starpu PUBLIC swe ${STARPU_STATIC_LIBRARIES} PRIVATE ${MPI_CXX_LIBRARIES})
+    target_link_libraries      (swe-starpu PUBLIC swe ${STARPU_STATIC_LIBRARIES})
+    if(ENABLE_OPENCL)
+        target_link_libraries(swe-starpu PRIVATE OpenCL::OpenCL)
+    endif()
     message(STATUS "StarPU 1.3 found")
 else (STARPU_FOUND)
     message(STATUS "StarPU not found")

@@ -33,22 +33,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/testkernels.cu" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/testkernels.cuh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda_asagi_openGL.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_cuda_openGL.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi_asagi.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_gnu_mpi_with_cuda.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_intel_mpi.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/options/SWE_intel_mpi_vectorized.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cu" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,6 +105,7 @@
       <workItem from="1588509502869" duration="2022000" />
       <workItem from="1588597588815" duration="1112000" />
       <workItem from="1588694768933" duration="6891000" />
+      <workItem from="1589032835967" duration="7189000" />
     </task>
     <servers />
   </component>
@@ -183,10 +173,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1920.1040@0.0.1920.1040" timestamp="1588701283760" />
-    <state x="623" y="229" width="672" height="160" key="search.everywhere.popup" timestamp="1588696679332">
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589038976578">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="623" y="229" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1588696679332" />
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589038976578" />
     <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog" timestamp="1588695013534">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
