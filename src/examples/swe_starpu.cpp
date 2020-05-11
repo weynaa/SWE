@@ -51,9 +51,8 @@
 #include "tools/Logger.hh"
 #include "tools/ProgressBar.hh"
 
-#define STARPU_USE_CUDA
-#define STARPU_USE_MPI
-#include <starpu.h>
+
+#include "swe-starpu/SWE_StarPU_Block.h"
 
 #include "swe-starpu/testkernels.cuh"
 
@@ -133,31 +132,90 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    void *myMatrix;
-    starpu_malloc(&myMatrix,sizeof(float)*l_nX*l_nY);
-    starpu_data_handle_t dataHandle;
-    starpu_matrix_data_register(&dataHandle, STARPU_MAIN_RAM, (uintptr_t) myMatrix, l_nX, l_nX, l_nY,
-                                sizeof(float));
+
+/*
+    using Real = float;
+    Real* b = nullptr;
+    starpu_malloc((void**)&b, sizeof(Real**));
+    struct SOA{
+        using float_type = Real;
+        void* h = nullptr;
+        void* hv = nullptr;
+        void* hu = nullptr;
+        starpu_data_handle_t spu_h = nullptr;
+        starpu_data_handle_t spu_hv = nullptr;
+        starpu_data_handle_t spu_hu = nullptr;
+
+        SOA() = default;
+        explicit SOA(const size_t nX, const size_t nY){
+            starpu_malloc(&h, sizeof(float_type)*nX*nY);
+            starpu_malloc(&hu, sizeof(float_type)*nX*nY);
+            starpu_malloc(&hv, sizeof(float_type)*nX*nY);
+
+            starpu_matrix_data_register(&spu_h, STARPU_MAIN_RAM, (uintptr_t) h, nX, nX, nY,
+                                        sizeof(float_type));
+            starpu_matrix_data_register(&spu_hu, STARPU_MAIN_RAM, (uintptr_t) hu, nX, nX, nY,
+                                        sizeof(float_type));
+            starpu_matrix_data_register(&spu_hv, STARPU_MAIN_RAM, (uintptr_t) hv, nX, nX, nY,
+                                        sizeof(float_type));
+        }
+
+        ~SOA(){
+            if(spu_h) {
+                starpu_data_unregister(spu_h);
+            }
+            if(spu_hu) {
+                starpu_data_unregister(spu_hu);
+            }
+            if(spu_hv) {
+                starpu_data_unregister(spu_hv);
+            }
+            if(h) {
+                starpu_free(h);
+            }
+            if(hu) {
+                starpu_free(hu);
+            }
+            if(hv) {
+                starpu_free(hv);
+            }
+        }
+    };
+
+    constexpr uint8_t NLAYERS = 2; //Number of Data copies we have locally. At leas two to have explicit read/write regions
+    SOA workingData[NLAYERS];
 
     constexpr uint32_t nBlocksX = 3;
     constexpr uint32_t nBlocksY = 3;
-    starpu_data_handle_t rowHandles[nBlocksY];
-    starpu_data_handle_t blockHandles[nBlocksY][nBlocksX];
-    //Divide X-Wise:
-    starpu_data_filter rowFilter = {};
-    rowFilter.filter_func = starpu_matrix_filter_block;
-    rowFilter.nchildren = nBlocksY;
-    starpu_data_filter colFilter = {};
-    colFilter.filter_func = starpu_matrix_filter_vertical_block;
-    colFilter.nchildren = nBlocksX;
-    starpu_data_map_filters(dataHandle,2,&rowFilter,&colFilter);
-    for(unsigned y = 0; y < nBlocksY;++y)
-    {
-        for(unsigned x = 0; x < nBlocksX;++x) {
-            auto blockHandle = starpu_data_get_sub_data(dataHandle, 2, y,x);
 
+
+    for(auto i = 0; i < NLAYERS;++i) {
+        workingData[i] = SOA(l_nX+1,l_nY+1);
+        //Divide X-Wise:
+        starpu_data_filter rowFilter = {};
+        rowFilter.filter_func = starpu_matrix_filter_block;
+        rowFilter.nchildren = nBlocksY;
+        starpu_data_filter colFilter = {};
+        colFilter.filter_func = starpu_matrix_filter_vertical_block;
+        colFilter.nchildren = nBlocksX;
+        starpu_data_map_filters(workingData[i], 2, &rowFilter, &colFilter);
+        starpu_data_filter readRowFilter = {};
+        readRowFilter.filter_func = starpu_matrix_filter_block_shadow;
+        readRowFilter.nchildren = nBlocksY;
+
+        starpu_data_filter readColFilter = {};
+        readColFilter.filter_func = starpu_matrix_filter_vertical_block_shadow;
+        readColFilter.nchildren = nBlocksX;
+        readColFilter.
+        starpu_data_map_filters(workingData[i], 2, &rowFilter, &colFilter);
+        for (unsigned y = 0; y < nBlocksY; ++y) {
+            for (unsigned x = 0; x < nBlocksX; ++x) {
+                auto blockHandle = starpu_data_get_sub_data(workingData[i], 2, y, x);
+
+            }
         }
     }
+
 
 
 
@@ -165,6 +223,7 @@ int main(int argc, char **argv) {
     starpu_task_wait_for_all();
     starpu_data_unregister(dataHandle);
     starpu_free(myMatrix);
+    */
     starpu_shutdown();
     return 0;
 }

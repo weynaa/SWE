@@ -25,10 +25,14 @@ SWE_StarPU_Block::SWE_StarPU_Block(int l_nx, int l_ny,
                      float l_dx, float l_dy)
         : nx(l_nx), ny(l_ny),
           dx(l_dx), dy(l_dy),
-          h(nx+2,ny+2), hu(nx+2,ny+2), hv(nx+2,ny+2), b(nx+2,ny+2),
+
         // This three are only set here, so eclipse does not complain
           maxTimestep(0), offsetX(0), offsetY(0)
 {
+    starpu_malloc((void**)&h,sizeof(float_type)*(nx+2)*(ny+2));
+    starpu_malloc((void**)&hu,sizeof(float_type)*(nx+2)*(ny+2));
+    starpu_malloc((void**)&hv,sizeof(float_type)*(nx+2)*(ny+2));
+    starpu_malloc((void**)&b,sizeof(float_type)*(nx+2)*(ny+2));
     // set WALL as default boundary condition
     for (int i=0; i<4; i++) {
         boundary[i] = PASSIVE;
@@ -65,15 +69,15 @@ void SWE_StarPU_Block::initScenario( float _offsetX, float _offsetY,
         for(int j=1; j<=ny; j++) {
             float x = offsetX + (i-0.5f)*dx;
             float y = offsetY + (j-0.5f)*dy;
-            h[i][j] =  i_scenario.getWaterHeight(x,y);
-            hu[i][j] = i_scenario.getVeloc_u(x,y) * h[i][j];
-            hv[i][j] = i_scenario.getVeloc_v(x,y) * h[i][j];
+            h[i*rowStride()+j] =  i_scenario.getWaterHeight(x,y);
+            hu[i*rowStride()+j] = i_scenario.getVeloc_u(x,y) * h[i*rowStride()+j];
+            hv[i*rowStride()+j] = i_scenario.getVeloc_v(x,y) * h[i*rowStride()+j];
         };
 
     // initialize bathymetry
     for(int i=0; i<=nx+1; i++) {
         for(int j=0; j<=ny+1; j++) {
-            b[i][j] = i_scenario.getBathymetry( offsetX + (i-0.5f)*dx,
+            b[i*rowStride()+j] = i_scenario.getBathymetry( offsetX + (i-0.5f)*dx,
                                                 offsetY + (j-0.5f)*dy );
         }
     }
@@ -87,9 +91,6 @@ void SWE_StarPU_Block::initScenario( float _offsetX, float _offsetY,
         setBoundaryType(BND_TOP, i_scenario.getBoundaryType(BND_TOP));
     }
 
-    // perform update after external write to variables
-    synchAfterWrite();
-
 }
 
 /**
@@ -100,10 +101,8 @@ void SWE_StarPU_Block::setWaterHeight(float (*_h)(float, float)) {
 
     for(int i=1; i<=nx; i++)
         for(int j=1; j<=ny; j++) {
-            h[i][j] =  _h(offsetX + (i-0.5f)*dx, offsetY + (j-0.5f)*dy);
+            h[i*rowStride()+j] =  _h(offsetX + (i-0.5f)*dx, offsetY + (j-0.5f)*dy);
         };
-
-    synchWaterHeightAfterWrite();
 }
 
 /**
@@ -117,11 +116,10 @@ void SWE_StarPU_Block::setDischarge(float (*_u)(float, float), float (*_v)(float
         for(int j=1; j<=ny; j++) {
             float x = offsetX + (i-0.5f)*dx;
             float y = offsetY + (j-0.5f)*dy;
-            hu[i][j] = _u(x,y) * h[i][j];
-            hv[i][j] = _v(x,y) * h[i][j];
+            hu[i*rowStride()+j] = _u(x,y) * h[i*rowStride()+j];
+            hv[i*rowStride()+j] = _v(x,y) * h[i*rowStride()+j];
         };
 
-    synchDischargeAfterWrite();
 }
 
 /**
@@ -133,9 +131,8 @@ void SWE_StarPU_Block::setBathymetry(float _b) {
 
     for(int i=0; i<=nx+1; i++)
         for(int j=0; j<=ny+1; j++)
-            b[i][j] = _b;
+            b[i*rowStride()+j] = _b;
 
-    synchBathymetryAfterWrite();
 }
 
 /**
@@ -147,9 +144,8 @@ void SWE_StarPU_Block::setBathymetry(float (*_b)(float, float)) {
 
     for(int i=0; i<=nx+1; i++)
         for(int j=0; j<=ny+1; j++)
-            b[i][j] = _b(offsetX + (i-0.5f)*dx, offsetY + (j-0.5f)*dy);
+            b[i*rowStride()+j] = _b(offsetX + (i-0.5f)*dx, offsetY + (j-0.5f)*dy);
 
-    synchBathymetryAfterWrite();
 }
 
 // /**
@@ -182,86 +178,9 @@ void SWE_StarPU_Block::setBathymetry(float (*_b)(float, float)) {
 // 	synchBathymetryAfterWrite();
 // }
 
-/**
- * return reference to water height unknown h
- */
-const Float2D& SWE_StarPU_Block::getWaterHeight() {
-    synchWaterHeightBeforeRead();
-    return h;
-}
-
-/**
- * return reference to discharge unknown hu
- */
-const Float2D& SWE_StarPU_Block::getDischarge_hu() {
-    synchDischargeBeforeRead();
-    return hu;
-}
-
-/**
- * return reference to discharge unknown hv
- */
-const Float2D& SWE_StarPU_Block::getDischarge_hv() {
-    synchDischargeBeforeRead();
-    return hv;
-}
-
-/**
- * return reference to bathymetry unknown b
- */
-const Float2D& SWE_StarPU_Block::getBathymetry() {
-    synchBathymetryBeforeRead();
-    return b;
-}
-
 //==================================================================
 // methods for simulation
 //==================================================================
-
-/**
- * Executes a single timestep with fixed time step size
- *  * compute net updates for every edge
- *  * update cell values with the net updates
- *
- * @param dt	time step width of the update
- */
-void
-SWE_StarPU_Block::simulateTimestep (float dt)
-{
-    computeNumericalFluxes ();
-    updateUnknowns (dt);
-}
-
-/**
- * simulate implements the main simulation loop between two checkpoints;
- * Note: this implementation can only be used, if you only use a single SWE_Block
- *       and only apply simple boundary conditions!
- *       In particular, SWE_Block::simulate can not trigger calls to exchange values
- *       of copy and ghost layers between blocks!
- * @param	tStart	time where the simulation is started
- * @param	tEnd	time of the next checkpoint
- * @return	actual	end time reached
- */
-float
-SWE_StarPU_Block::simulate (float i_tStart, float i_tEnd)
-{
-    float t = i_tStart;
-    do {
-        //set values in ghost cells
-        setGhostLayer ();
-
-        // compute numerical fluxes for every edge
-        // -> computeNumericalFluxes might update maxTimestep
-        computeNumericalFluxes ();
-        // update unknowns accordingly
-        updateUnknowns (maxTimestep);
-        t += maxTimestep;
-
-        std::cout << "Simulation at time " << t << std::endl << std::flush;
-    } while (t < i_tEnd);
-
-    return t;
-}
 
 /**
  * Set the boundary type for specific block boundary.
@@ -272,7 +191,7 @@ SWE_StarPU_Block::simulate (float i_tStart, float i_tEnd)
  */
 void SWE_StarPU_Block::setBoundaryType( const BoundaryEdge i_edge,
                                  const BoundaryType i_boundaryType,
-                                 const SWE_Block1D* i_inflow) {
+                                 const SWE_StarPU_Block1D* i_inflow) {
     boundary[i_edge] = i_boundaryType;
     neighbour[i_edge] = i_inflow;
 
@@ -291,144 +210,28 @@ void SWE_StarPU_Block::setBoundaryBathymetry()
 {
     // set bathymetry values in the ghost layer, if necessary
     if( boundary[BND_LEFT] == OUTFLOW || boundary[BND_LEFT] == WALL ) {
-        memcpy(b[0], b[1], sizeof(float)*(ny+2));
+        memcpy(&b[0], &b[1*rowStride()], sizeof(float)*(ny+2));
     }
     if( boundary[BND_RIGHT] == OUTFLOW || boundary[BND_RIGHT] == WALL ) {
-        memcpy(b[nx+1], b[nx], sizeof(float)*(ny+2));
+        memcpy(&b[(nx+1)*rowStride()], &b[nx*rowStride()], sizeof(float)*(ny+2));
     }
     if( boundary[BND_BOTTOM] == OUTFLOW || boundary[BND_BOTTOM] == WALL ) {
         for(int i=0; i<=nx+1; i++) {
-            b[i][0] = b[i][1];
+            b[i*rowStride()+0] = b[i*rowStride()+1];
         }
     }
     if( boundary[BND_TOP] == OUTFLOW || boundary[BND_TOP] == WALL ) {
         for(int i=0; i<=nx+1; i++) {
-            b[i][ny+1] = b[i][ny];
+            b[i*rowStride()+ny+1] = b[i+rowStride()+ny];
         }
     }
 
 
     // set corner values
-    b[0][0]       = b[1][1];
-    b[0][ny+1]    = b[1][ny];
-    b[nx+1][0]    = b[nx][1];
-    b[nx+1][ny+1] = b[nx][ny];
-
-    // synchronize after an external update of the bathymetry
-    synchBathymetryAfterWrite();
-}
-
-/**
- * register the row or column layer next to a boundary as a "copy layer",
- * from which values will be copied into the ghost layer or a neighbour;
- * @return	a SWE_Block1D object that contains row variables h, hu, and hv
- */
-SWE_StarPU_Block1D* SWE_StarPU_Block::registerCopyLayer(BoundaryEdge edge){
-
-    switch (edge) {
-        case BND_LEFT:
-            return new SWE_Block1D( h.getColProxy(1), hu.getColProxy(1), hv.getColProxy(1) );
-        case BND_RIGHT:
-            return new SWE_Block1D( h.getColProxy(nx), hu.getColProxy(nx), hv.getColProxy(nx) );
-        case BND_BOTTOM:
-            return new SWE_Block1D( h.getRowProxy(1), hu.getRowProxy(1), hv.getRowProxy(1));
-        case BND_TOP:
-            return new SWE_Block1D( h.getRowProxy(ny), hu.getRowProxy(ny), hv.getRowProxy(ny));
-    };
-    return NULL;
-}
-
-/**
- * "grab" the ghost layer at the specific boundary in order to set boundary values
- * in this ghost layer externally.
- * The boundary conditions at the respective ghost layer is set to PASSIVE,
- * such that the grabbing program component is responsible to provide correct
- * values in the ghost layer, for example by receiving data from a remote
- * copy layer via MPI communication.
- * @param	specified edge
- * @return	a SWE_Block1D object that contains row variables h, hu, and hv
- */
-SWE_Block1D* SWE_StarPU_Block::grabGhostLayer(BoundaryEdge edge){
-
-    boundary[edge] = PASSIVE;
-    switch (edge) {
-        case BND_LEFT:
-            return new SWE_Block1D( h.getColProxy(0), hu.getColProxy(0), hv.getColProxy(0) );
-        case BND_RIGHT:
-            return new SWE_Block1D( h.getColProxy(nx+1), hu.getColProxy(nx+1), hv.getColProxy(nx+1) );
-        case BND_BOTTOM:
-            return new SWE_Block1D( h.getRowProxy(0), hu.getRowProxy(0), hv.getRowProxy(0));
-        case BND_TOP:
-            return new SWE_Block1D( h.getRowProxy(ny+1), hu.getRowProxy(ny+1), hv.getRowProxy(ny+1));
-    };
-    return NULL;
-}
-
-
-/**
- * set the values of all ghost cells depending on the specifed
- * boundary conditions;
- * if the ghost layer replicates the variables of a remote SWE_Block,
- * the values are copied
- */
-void SWE_StarPU_Block::setGhostLayer() {
-
-#ifdef DBG
-    cout << "Set simple boundary conditions " << endl << flush;
-#endif
-    // call to virtual function to set ghost layer values
-    setBoundaryConditions();
-
-    // for a CONNECT boundary, data will be copied from a neighbouring
-    // SWE_Block (via a SWE_Block1D proxy object)
-    // -> these copy operations cannot be executed in GPU/accelerator memory, e.g.
-    //    setBoundaryConditions then has to take care that values are copied.
-
-#ifdef DBG
-    cout << "Set CONNECT boundary conditions in main memory " << endl << flush;
-#endif
-    // left boundary
-    if (boundary[BND_LEFT] == CONNECT) {
-        for(int j=0; j<=ny+1; j++) {
-            h[0][j] = neighbour[BND_LEFT]->h[j];
-            hu[0][j] = neighbour[BND_LEFT]->hu[j];
-            hv[0][j] = neighbour[BND_LEFT]->hv[j];
-        };
-    };
-
-    // right boundary
-    if(boundary[BND_RIGHT] == CONNECT) {
-        for(int j=0; j<=ny+1; j++) {
-            h[nx+1][j] = neighbour[BND_RIGHT]->h[j];
-            hu[nx+1][j] = neighbour[BND_RIGHT]->hu[j];
-            hv[nx+1][j] = neighbour[BND_RIGHT]->hv[j];
-        };
-    };
-
-    // bottom boundary
-    if(boundary[BND_BOTTOM] == CONNECT) {
-        for(int i=0; i<=nx+1; i++) {
-            h[i][0] = neighbour[BND_BOTTOM]->h[i];
-            hu[i][0] = neighbour[BND_BOTTOM]->hu[i];
-            hv[i][0] = neighbour[BND_BOTTOM]->hv[i];
-        };
-    };
-
-    // top boundary
-    if(boundary[BND_TOP] == CONNECT) {
-        for(int i=0; i<=nx+1; i++) {
-            h[i][ny+1] = neighbour[BND_TOP]->h[i];
-            hu[i][ny+1] = neighbour[BND_TOP]->hu[i];
-            hv[i][ny+1] = neighbour[BND_TOP]->hv[i];
-        }
-    };
-
-#ifdef DBG
-    cout << "Synchronize ghost layers (for heterogeneous memory) " << endl << flush;
-#endif
-    // synchronize the ghost layers (for PASSIVE and CONNECT conditions)
-    // with accelerator memory
-    synchGhostLayerAfterWrite();
+    b[0+rowStride()+0]       = b[1+rowStride()+1];
+    b[0*rowStride()+ny+1]    = b[1*rowStride()+ny];
+    b[(nx+1)*rowStride()+0]    = b[nx*rowStride()+1];
+    b[(nx+1)*rowStride()+ny+1] = b[nx*rowStride()+ny];
 }
 
 /**
@@ -443,7 +246,7 @@ void SWE_StarPU_Block::setGhostLayer() {
 void SWE_StarPU_Block::computeMaxTimestep( const float i_dryTol,
                                     const float i_cflNumber ) {
 
-    // initialize the maximum wave speed
+/*    // initialize the maximum wave speed
     float l_maximumWaveSpeed = (float) 0;
 
     // compute the maximum wave speed within the grid
@@ -469,7 +272,7 @@ void SWE_StarPU_Block::computeMaxTimestep( const float i_dryTol,
     maxTimestep = l_minimumCellLength / l_maximumWaveSpeed;
 
     // apply the CFL condition
-    maxTimestep *= i_cflNumber;
+    maxTimestep *= i_cflNumber;*/
 }
 
 
@@ -485,7 +288,7 @@ void SWE_StarPU_Block::computeMaxTimestep( const float i_dryTol,
  * - derived classes need to transfer ghost layers
  */
 void SWE_StarPU_Block::setBoundaryConditions() {
-
+/*
     // CONNECT boundary conditions are set in the calling function setGhostLayer
     // PASSIVE boundary conditions need to be set by the component using SWE_Block
 
@@ -601,7 +404,7 @@ void SWE_StarPU_Block::setBoundaryConditions() {
             break;
     };
 
-    /*
+    *//*
      * Set values in corner ghost cells. Required for dimensional splitting and visualizuation.
      *   The quantities in the corner ghost cells are chosen to generate a zero Riemann solutions
      *   (steady state) with the neighboring cells. For the lower left corner (0,0) using
@@ -626,7 +429,7 @@ void SWE_StarPU_Block::setBoundaryConditions() {
      *                  *            *           *
      *                  **************************
      * </pre>
-     */
+     *//*
     h [0][0] = h [1][1];
     hu[0][0] = hu[1][1];
     hv[0][0] = hv[1][1];
@@ -641,84 +444,5 @@ void SWE_StarPU_Block::setBoundaryConditions() {
 
     h [nx+1][ny+1] = h [nx][ny];
     hu[nx+1][ny+1] = hu[nx][ny];
-    hv[nx+1][ny+1] = hv[nx][ny];
+    hv[nx+1][ny+1] = hv[nx][ny];*/
 }
-
-
-//==================================================================
-// protected member functions for memory model:
-// in case of temporary variables (especial in non-local memory, for
-// example on accelerators), the main variables h, hu, hv, and b
-// are not necessarily updated after each time step.
-// The following methods are called to synchronise before or after
-// external read or write to the variables.
-//==================================================================
-
-/**
- * Update all temporary and non-local (for heterogeneous computing) variables
- * after an external update of the main variables h, hu, hv, and b.
- */
-void SWE_StarPU_Block::synchAfterWrite() {
-    synchWaterHeightAfterWrite();
-    synchDischargeAfterWrite();
-    synchBathymetryAfterWrite();
-}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * after an external update of the water height h
- */
-void SWE_StarPU_Block::synchWaterHeightAfterWrite() {}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * after an external update of the discharge variables hu and hv
- */
-void SWE_StarPU_Block::synchDischargeAfterWrite() {}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * after an external update of the bathymetry b
- */
-void SWE_StarPU_Block::synchBathymetryAfterWrite() {}
-
-/**
- * Update the ghost layers (only for CONNECT and PASSIVE boundary conditions)
- * after an external update of the main variables h, hu, hv, and b in the
- * ghost layer.
- */
-void SWE_StarPU_Block::synchGhostLayerAfterWrite() {}
-
-/**
- * Update all temporary and non-local (for heterogeneous computing) variables
- * before an external access to the main variables h, hu, hv, and b.
- */
-void SWE_StarPU_Block::synchBeforeRead() {
-    synchWaterHeightBeforeRead();
-    synchDischargeBeforeRead();
-    synchBathymetryBeforeRead();
-}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * before an external access to the water height h
- */
-void SWE_StarPU_Block::synchWaterHeightBeforeRead() {}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * before an external access to the discharge variables hu and hv
- */
-void SWE_StarPU_Block::synchDischargeBeforeRead() {}
-
-/**
- * Update temporary and non-local (for heterogeneous computing) variables
- * before an external access to the bathymetry b
- */
-void SWE_StarPU_Block::synchBathymetryBeforeRead() {}
-
-/**
- * Update (for heterogeneous computing) variables in copy layers
- * before an external access to the unknowns
- */
-void SWE_StarPU_Block::synchCopyLayerBeforeRead() {}

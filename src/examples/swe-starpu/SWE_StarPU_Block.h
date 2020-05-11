@@ -6,7 +6,7 @@
 #define SWE_SWE_STARPU_BLOCK_H
 #include "tools/help.hh"
 #include "scenarios/SWE_Scenario.hh"
-#include <starpu.h>
+#include "StarPUCommon.h"
 
 #include <iostream>
 #include <fstream>
@@ -91,7 +91,7 @@ class SWE_StarPU_Block {
 
 public:
 
-    static SWE_Block* getBlockInstance(float nx, float ny, float dx, float dy);
+    using float_type = float;
     // object methods
     /// initialise unknowns to a specific scenario:
     void initScenario(float _offsetX, float _offsetY,
@@ -106,45 +106,21 @@ public:
     /// set the bathymetry according to a given function
     void setBathymetry(float (*_b)(float, float));
 
-    // read access to arrays of unknowns
-    /// provides read access to the water height array
-    const Float2D& getWaterHeight();
-    /// provides read access to the momentum/discharge array (x-component)
-    const Float2D& getDischarge_hu();
-    /// provides read access to the momentum/discharge array (y-component)
-    const Float2D& getDischarge_hv();
-    /// provides read access to the bathymetry data
-    const Float2D& getBathymetry();
-
     // defining boundary conditions
     /// set type of boundary condition for the specified boundary
     void setBoundaryType(BoundaryEdge edge, BoundaryType boundtype,
-                         const SWE_Block1D* inflow = NULL);
+                         const SWE_StarPU_Block1D* inflow = NULL);
 //     void connectBoundaries(BoundaryEdge edge, SWE_Block &neighbour, BoundaryEdge neighEdge);
 
-    /// return a pointer to proxy class to access the copy layer
-    virtual SWE_Block1D* registerCopyLayer(BoundaryEdge edge);
-    /// "grab" the ghost layer in order to set these values externally
-    virtual SWE_Block1D* grabGhostLayer(BoundaryEdge edge);
-
-    /// set values in ghost layers
-    void setGhostLayer();
 
     /// return maximum size of the time step to ensure stability of the method
     /**
      * @return	current value of the member variable #maxTimestep
      */
-    float getMaxTimestep() { return maxTimestep; };
+    float getMaxTimestep() const noexcept { return maxTimestep; };
 
     // compute the largest allowed time step for the current grid block
-    void computeMaxTimestep( const float i_dryTol = 0.1, const float i_cflNumber = 0.4 );
-
-    /// execute a single time step (with fixed time step size) of the simulation
-    virtual void simulateTimestep(float dt);
-
-    /// perform the simulation starting with simulation time tStart,
-    /// until simulation time tEnd is reached
-    virtual float simulate(float tStart, float tEnd);
+    void computeMaxTimestep( float i_dryTol = 0.1, float i_cflNumber = 0.4 );
 
     /// compute the numerical fluxes for each edge of the Cartesian grid
     /**
@@ -167,35 +143,24 @@ public:
 
     // access methods to grid sizes
     /// returns #nx, i.e. the grid size in x-direction
-    int getNx() { return nx; }
+    int getNx() const noexcept { return nx; }
     /// returns #ny, i.e. the grid size in y-direction
-    int getNy() { return ny; }
+    int getNy() const noexcept { return ny; }
 
     // Konstanten:
     /// static variable that holds the gravity constant (g = 9.81 m/s^2):
     static constexpr float g = 9.81;
     virtual ~SWE_StarPU_Block() = default;
 
+    ///Number of elements between one row and the next
+    inline int rowStride() const noexcept {return nx+2;}
 protected:
     // Constructor und Destructor
-    SWE_Block(int l_nx, int l_ny,
+    SWE_StarPU_Block(int l_nx, int l_ny,
               float l_dx, float l_dy);
 
     // Sets the bathymetry on outflow and wall boundaries
     void setBoundaryBathymetry();
-
-    // synchronization Methods
-    virtual void synchAfterWrite();
-    virtual void synchWaterHeightAfterWrite();
-    virtual void synchDischargeAfterWrite();
-    virtual void synchBathymetryAfterWrite();
-    virtual void synchGhostLayerAfterWrite();
-
-    virtual void synchBeforeRead();
-    virtual void synchWaterHeightBeforeRead();
-    virtual void synchDischargeBeforeRead();
-    virtual void synchBathymetryBeforeRead();
-    virtual void synchCopyLayerBeforeRead();
 
     /// set boundary conditions in ghost layers (set boundary conditions)
     virtual void setBoundaryConditions();
@@ -209,11 +174,12 @@ protected:
 
     // define arrays for unknowns:
     // h (water level) and u,v (velocity in x and y direction)
-    // hd, ud, and vd are respective CUDA arrays on GPU
-    starpu_data_handle_t h;	///< array that holds the water height for each element
-    starpu_data_handle_t hu; ///< array that holds the x-component of the momentum for each element (water height h multiplied by velocity in x-direction)
-    starpu_data_handle_t hv; ///< array that holds the y-component of the momentum for each element (water height h multiplied by velocity in y-direction)
-    starpu_data_handle_t b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
+    float* h;	///< array that holds the water height for each element
+    float* hu; ///< array that holds the x-component of the momentum for each element (water height h multiplied by velocity in x-direction)
+    float* hv; ///< array that holds the y-component of the momentum for each element (water height h multiplied by velocity in y-direction)
+    float* b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
+
+    starpu_data_handle_t spu_h, spu_hu, spu_hv, spu_b;
 
     /// type of boundary conditions at LEFT, RIGHT, TOP, and BOTTOM boundary
     BoundaryType boundary[4];
@@ -241,17 +207,18 @@ protected:
  */
 struct SWE_StarPU_Block1D {
     size_t size;
-    SWE_Block1D(
-            starpu_data_handle_t _h,
-            starpu_data_handle_t _hu,
-            starpu_data_handle_t _hv,
-            size_t _size) :size(_size){
-
-    }
-
     starpu_data_handle_t h;
     starpu_data_handle_t hu;
     starpu_data_handle_t hv;
+    SWE_StarPU_Block1D(
+            starpu_data_handle_t _h,
+            starpu_data_handle_t _hu,
+            starpu_data_handle_t _hv,
+            const size_t _size) :size(_size), h(_h), hu(_hu), hv(_hv){
+
+    }
+
+
 };
 
 #endif //SWE_SWE_STARPU_BLOCK_H

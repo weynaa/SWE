@@ -33,10 +33,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/StarPUCommon.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -70,7 +73,7 @@
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="swe-single-node" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-single-node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-single-node">
+    <configuration name="swe-single-node" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 1024 -y 1024 -o testout" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-single-node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-single-node">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
@@ -105,7 +108,9 @@
       <workItem from="1588509502869" duration="2022000" />
       <workItem from="1588597588815" duration="1112000" />
       <workItem from="1588694768933" duration="6891000" />
-      <workItem from="1589032835967" duration="7189000" />
+      <workItem from="1589032835967" duration="7498000" />
+      <workItem from="1589102528308" duration="3089000" />
+      <workItem from="1589202076387" duration="7580000" />
     </task>
     <servers />
   </component>
@@ -125,46 +130,46 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1588510061944">
+    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1589205184158">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1588510061944" />
+    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589205184158" />
     <state width="440" height="506" key="DebuggerActiveHint" timestamp="1588701946938">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="440" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1588701946938" />
-    <state width="1874" height="273" key="GridCell.Tab.0.bottom" timestamp="1588702133333">
+    <state width="1874" height="338" key="GridCell.Tab.0.bottom" timestamp="1589205185286">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="273" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133333" />
-    <state width="1874" height="273" key="GridCell.Tab.0.center" timestamp="1588702133332">
+    <state width="1874" height="338" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185286" />
+    <state width="1874" height="338" key="GridCell.Tab.0.center" timestamp="1589205185286">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="273" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133332" />
-    <state width="1874" height="273" key="GridCell.Tab.0.left" timestamp="1588702133328">
+    <state width="1874" height="338" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185286" />
+    <state width="1874" height="338" key="GridCell.Tab.0.left" timestamp="1589205185286">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="273" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133328" />
-    <state width="1874" height="273" key="GridCell.Tab.0.right" timestamp="1588702133333">
+    <state width="1874" height="338" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185286" />
+    <state width="1874" height="338" key="GridCell.Tab.0.right" timestamp="1589205185286">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="273" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1588702133333" />
-    <state width="1874" height="338" key="GridCell.Tab.1.bottom" timestamp="1588702131657">
+    <state width="1874" height="338" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185286" />
+    <state width="1874" height="338" key="GridCell.Tab.1.bottom" timestamp="1589205185288">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="338" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
-    <state width="1874" height="338" key="GridCell.Tab.1.center" timestamp="1588702131657">
+    <state width="1874" height="338" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185287" />
+    <state width="1874" height="338" key="GridCell.Tab.1.center" timestamp="1589205185287">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="338" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
-    <state width="1874" height="338" key="GridCell.Tab.1.left" timestamp="1588702131657">
+    <state width="1874" height="338" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185287" />
+    <state width="1874" height="338" key="GridCell.Tab.1.left" timestamp="1589205185287">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="338" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
-    <state width="1874" height="338" key="GridCell.Tab.1.right" timestamp="1588702131657">
+    <state width="1874" height="338" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185287" />
+    <state width="1874" height="338" key="GridCell.Tab.1.right" timestamp="1589205185287">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="338" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1588702131657" />
+    <state width="1874" height="338" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589205185287" />
     <state x="461" y="155" key="SettingsEditor" timestamp="1588509584006">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
@@ -173,13 +178,24 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1920.1040@0.0.1920.1040" timestamp="1588701283760" />
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589038976578">
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589210099583">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589038976578" />
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589210099583" />
     <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog" timestamp="1588695013534">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1588695013534" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/examples/swe_simple.cpp</url>
+          <line>126</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
