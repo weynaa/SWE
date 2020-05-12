@@ -54,38 +54,6 @@
 
 #include "swe-starpu/SWE_StarPU_Block.h"
 
-#include "swe-starpu/testkernels.cuh"
-
-
-static void test_cpu_func(void *buffers[], void *_args) {
-    auto *factor = (float *) _args;
-    /* length of the vector */
-    unsigned nx = STARPU_MATRIX_GET_NX(buffers[0]);
-    unsigned ny = STARPU_MATRIX_GET_NY(buffers[0]);
-    /* local copy of the vector pointer */
-    unsigned row_stride = STARPU_MATRIX_GET_LD(buffers[0]);
-    auto *val = (float *) STARPU_MATRIX_GET_PTR(buffers[0]);
-
-    for (auto y = 0; y < ny; ++y) {
-        for(auto x = 0; x < nx;++x) {
-            val[y*row_stride+x] *= *factor;
-        }
-    }
-}
-
-
-
-
-static starpu_codelet test_codelet = []() {
-    //Only C++20 has designated initializers
-    starpu_codelet codelet = {};
-    codelet.where = STARPU_CPU;
-    codelet.nbuffers = 1;
-    codelet.cpu_funcs[0] = test_cpu_func;
-    codelet.modes[0] = STARPU_RW;
-    return codelet;
-}();
-
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
  */
@@ -113,14 +81,33 @@ int main(int argc, char **argv) {
     //! number of grid cells in x- and y-direction.
     int l_nX, l_nY;
 
+    //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
+    constexpr int l_numberOfCheckPoints = 20;
+
 
     //! l_baseName of the plots.
     std::string l_baseName;
+
+    SWE_RadialDamBreakScenario l_scenario;
 
     // read command line parameters
     l_nX = args.getArgument<int>("grid-size-x");
     l_nY = args.getArgument<int>("grid-size-y");
     l_baseName = args.getArgument<std::string>("output-basepath");
+
+    auto l_dX = (l_scenario.getBoundaryPos(BND_RIGHT) - l_scenario.getBoundaryPos(BND_LEFT) )/l_nX;
+    auto l_dY = (l_scenario.getBoundaryPos(BND_TOP) - l_scenario.getBoundaryPos(BND_BOTTOM) )/l_nY;
+
+    //! time when the simulation ends.
+    float l_endSimulation = l_scenario.endSimulation();
+
+    //! checkpoints when output files are written.
+    float* l_checkPoints = new float[l_numberOfCheckPoints+1];
+
+    // compute the checkpoints in time
+    for(int cp = 0; cp <= l_numberOfCheckPoints; cp++) {
+        l_checkPoints[cp] = cp*(l_endSimulation/l_numberOfCheckPoints);
+    }
 
     starpu_conf conf = {};
     starpu_conf_init(&conf);
@@ -132,6 +119,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    auto l_block = SWE_StarPU_Block(l_nX,l_nY,l_dX,l_dY);
+
+    l_block.initScenario(0,0,l_scenario);
+
+    l_block.register_starpu();
 
 /*
     using Real = float;

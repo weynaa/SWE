@@ -80,9 +80,16 @@ if (STARPU_FOUND)
             src/examples/swe-starpu/SWE_StarPU_Block.h
             src/examples/swe-starpu/SWE_StarPU_Block.cpp
             src/examples/swe-starpu/StarPUCommon.h
-            src/examples/swe-starpu/codelets.h src/examples/swe-starpu/codelets.cpp)
+            src/examples/swe-starpu/codelets.h
+            src/examples/swe-starpu/codelets.cpp
+            src/examples/swe-starpu/SWE_HUV_Matrix.cpp
+            src/examples/swe-starpu/SWE_HUV_Matrix.h)
     if(ENABLE_CUDA)
         target_sources(swe-starpu PRIVATE src/examples/swe-starpu/testkernels.cu)
+        target_compile_definitions(swe-starpu PUBLIC ENABLE_CUDA)
+    endif()
+    if(ENABLE_OPENCL)
+        target_compile_definitions(swe-starpu PUBLIC ENABLE_OPENCL)
     endif()
     target_include_directories (swe-starpu PUBLIC ${STARPU_INCLUDE_DIRS})
     target_link_directories    (swe-starpu PUBLIC ${STARPU_STATIC_LIBRARY_DIRS})

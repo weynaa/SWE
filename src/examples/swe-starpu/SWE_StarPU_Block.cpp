@@ -29,15 +29,16 @@ SWE_StarPU_Block::SWE_StarPU_Block(int l_nx, int l_ny,
         // This three are only set here, so eclipse does not complain
           maxTimestep(0), offsetX(0), offsetY(0)
 {
-    starpu_malloc((void**)&h,sizeof(float_type)*(nx+2)*(ny+2));
+    starpu_malloc((void**)&h,sizeof(float_type)*nx*ny);
     starpu_malloc((void**)&hu,sizeof(float_type)*(nx+2)*(ny+2));
     starpu_malloc((void**)&hv,sizeof(float_type)*(nx+2)*(ny+2));
     starpu_malloc((void**)&b,sizeof(float_type)*(nx+2)*(ny+2));
     // set WALL as default boundary condition
     for (int i=0; i<4; i++) {
         boundary[i] = PASSIVE;
-        neighbour[i] = NULL;
+        neighbours[i] = NULL;
     };
+
 }
 
 
@@ -148,36 +149,6 @@ void SWE_StarPU_Block::setBathymetry(float (*_b)(float, float)) {
 
 }
 
-// /**
-// 	Restores values for h, v, and u from file data
-// 	@param _b		array holding b-values in sequence
-// */
-// void SWE_Block::setBathymetry(float* _b) {
-// 	// Set all inner cells to the value available
-// 	int i, j;
-// 	for(int k=0; k<nx*ny; k++) {
-// 		i = (k % ny) + 1;
-// 		j = (k / ny) + 1;
-// 		b[i][j] = _b[k];
-// 	};
-//
-// 	// Set ghost cells values such that normals = 0
-// 	// Boundaries
-// 	for(int i=1; i<=nx; i++) {
-// 		b[0][i] = b[1][i];
-// 		b[nx+1][i] = b[nx][i];
-// 		b[i][0] = b[i][1];
-// 		b[i][nx+1] = b[i][nx];
-// 	}
-// 	// Corners
-// 	b[0][0] = b[1][1];
-// 	b[0][ny+1] = b[1][ny];
-// 	b[nx+1][0] = b[nx][1];
-// 	b[nx+1][ny+1] = b[nx][ny];
-//
-// 	synchBathymetryAfterWrite();
-// }
-
 //==================================================================
 // methods for simulation
 //==================================================================
@@ -191,9 +162,9 @@ void SWE_StarPU_Block::setBathymetry(float (*_b)(float, float)) {
  */
 void SWE_StarPU_Block::setBoundaryType( const BoundaryEdge i_edge,
                                  const BoundaryType i_boundaryType,
-                                 const SWE_StarPU_Block1D* i_inflow) {
+                                 SWE_StarPU_Block* i_inflow) {
     boundary[i_edge] = i_boundaryType;
-    neighbour[i_edge] = i_inflow;
+    neighbours[i_edge] = i_inflow;
 
     if (i_boundaryType == OUTFLOW || i_boundaryType == WALL)
         // One of the boundary was changed to OUTFLOW or WALL
@@ -232,217 +203,4 @@ void SWE_StarPU_Block::setBoundaryBathymetry()
     b[0*rowStride()+ny+1]    = b[1*rowStride()+ny];
     b[(nx+1)*rowStride()+0]    = b[nx*rowStride()+1];
     b[(nx+1)*rowStride()+ny+1] = b[nx*rowStride()+ny];
-}
-
-/**
- * Compute the largest allowed time step for the current grid block
- * (reference implementation) depending on the current values of
- * variables h, hu, and hv, and store this time step size in member
- * variable maxTimestep.
- *
- * @param i_dryTol dry tolerance (dry cells do not affect the time step).
- * @param i_cflNumber CFL number of the used method.
- */
-void SWE_StarPU_Block::computeMaxTimestep( const float i_dryTol,
-                                    const float i_cflNumber ) {
-
-/*    // initialize the maximum wave speed
-    float l_maximumWaveSpeed = (float) 0;
-
-    // compute the maximum wave speed within the grid
-    for(int i=1; i <= nx; i++) {
-        for(int j=1; j <= ny; j++) {
-            if( h[i][j] > i_dryTol ) {
-                float l_momentum = std::max( std::abs( hu[i][j] ),
-                                             std::abs( hv[i][j] ) );
-
-                float l_particleVelocity = l_momentum / h[i][j];
-
-                // approximate the wave speed
-                float l_waveSpeed = l_particleVelocity + std::sqrt( g * h[i][j] );
-
-                l_maximumWaveSpeed = std::max( l_maximumWaveSpeed, l_waveSpeed );
-            }
-        }
-    }
-
-    float l_minimumCellLength = std::min( dx, dy );
-
-    // set the maximum time step variable
-    maxTimestep = l_minimumCellLength / l_maximumWaveSpeed;
-
-    // apply the CFL condition
-    maxTimestep *= i_cflNumber;*/
-}
-
-
-//==================================================================
-// protected member functions for simulation
-// (to provide a reference implementation)
-//==================================================================
-
-/**
- * set the values of all ghost cells depending on the specifed
- * boundary conditions
- * - set boundary conditions for typs WALL and OUTFLOW
- * - derived classes need to transfer ghost layers
- */
-void SWE_StarPU_Block::setBoundaryConditions() {
-/*
-    // CONNECT boundary conditions are set in the calling function setGhostLayer
-    // PASSIVE boundary conditions need to be set by the component using SWE_Block
-
-    // left boundary
-    switch(boundary[BND_LEFT]) {
-        case WALL:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[0][j] = h[1][j];
-                hu[0][j] = -hu[1][j];
-                hv[0][j] = hv[1][j];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[0][j] = h[1][j];
-                hu[0][j] = hu[1][j];
-                hv[0][j] = hv[1][j];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
-
-    // right boundary
-    switch(boundary[BND_RIGHT]) {
-        case WALL:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[nx+1][j] = h[nx][j];
-                hu[nx+1][j] = -hu[nx][j];
-                hv[nx+1][j] = hv[nx][j];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[nx+1][j] = h[nx][j];
-                hu[nx+1][j] = hu[nx][j];
-                hv[nx+1][j] = hv[nx][j];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
-
-    // bottom boundary
-    switch(boundary[BND_BOTTOM]) {
-        case WALL:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i][0] = h[i][1];
-                hu[i][0] = hu[i][1];
-                hv[i][0] = -hv[i][1];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i][0] = h[i][1];
-                hu[i][0] = hu[i][1];
-                hv[i][0] = hv[i][1];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
-
-    // top boundary
-    switch(boundary[BND_TOP]) {
-        case WALL:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i][ny+1] = h[i][ny];
-                hu[i][ny+1] = hu[i][ny];
-                hv[i][ny+1] = -hv[i][ny];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i][ny+1] = h[i][ny];
-                hu[i][ny+1] = hu[i][ny];
-                hv[i][ny+1] = hv[i][ny];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
-
-    *//*
-     * Set values in corner ghost cells. Required for dimensional splitting and visualizuation.
-     *   The quantities in the corner ghost cells are chosen to generate a zero Riemann solutions
-     *   (steady state) with the neighboring cells. For the lower left corner (0,0) using
-     *   the values of (1,1) generates a steady state (zero) Riemann problem for (0,0) - (0,1) and
-     *   (0,0) - (1,0) for both outflow and reflecting boundary conditions.
-     *
-     *   Remark: Unsplit methods don't need corner values.
-     *
-     * Sketch (reflecting boundary conditions, lower left corner):
-     * <pre>
-     *                  **************************
-     *                  *  _    _    *  _    _   *
-     *  Ghost           * |  h   |   * |  h   |  *
-     *  cell    ------> * | -hu  |   * |  hu  |  * <------ Cell (1,1) inside the domain
-     *  (0,1)           * |_ hv _|   * |_ hv _|  *
-     *                  *            *           *
-     *                  **************************
-     *                  *  _    _    *  _    _   *
-     *   Corner Ghost   * |  h   |   * |  h   |  *
-     *   cell   ------> * |  hu  |   * |  hu  |  * <----- Ghost cell (1,0)
-     *   (0,0)          * |_ hv _|   * |_-hv _|  *
-     *                  *            *           *
-     *                  **************************
-     * </pre>
-     *//*
-    h [0][0] = h [1][1];
-    hu[0][0] = hu[1][1];
-    hv[0][0] = hv[1][1];
-
-    h [0][ny+1] = h [1][ny];
-    hu[0][ny+1] = hu[1][ny];
-    hv[0][ny+1] = hv[1][ny];
-
-    h [nx+1][0] = h [nx][1];
-    hu[nx+1][0] = hu[nx][1];
-    hv[nx+1][0] = hv[nx][1];
-
-    h [nx+1][ny+1] = h [nx][ny];
-    hu[nx+1][ny+1] = hu[nx][ny];
-    hv[nx+1][ny+1] = hv[nx][ny];*/
 }

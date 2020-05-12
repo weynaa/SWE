@@ -4,9 +4,11 @@
 
 #ifndef SWE_SWE_STARPU_BLOCK_H
 #define SWE_SWE_STARPU_BLOCK_H
+
 #include "tools/help.hh"
 #include "scenarios/SWE_Scenario.hh"
 #include "StarPUCommon.h"
+#include "SWE_HUV_Matrix.h"
 
 #include <iostream>
 #include <fstream>
@@ -15,7 +17,48 @@
 //using namespace std;
 
 // forward declaration
-struct SWE_StarPU_Block1D;
+/**
+ * SWE_Block1D is a simple struct that can represent a single line or row of
+ * SWE_Block unknowns (using the Float1D proxy class).
+ * It is intended to unify the implementation of inflow and periodic boundary
+ * conditions, as well as the ghost/copy-layer connection between several SWE_Block
+ * grids.
+ */
+
+struct SWE_StarPU_Block1D {
+
+    size_t size;
+    float_type *h = nullptr;
+    float_type *hu = nullptr;
+    float_type *hv = nullptr;
+    starpu_data_handle_t spu_huv;
+
+    explicit SWE_StarPU_Block1D(
+            const size_t _size) : size(_size) {
+        starpu_malloc((void **) &h, sizeof(float_type) * size);
+        starpu_malloc((void **) &h, sizeof(float_type) * size);
+        starpu_malloc((void **) &h, sizeof(float_type) * size);
+        starpu_malloc((void **) &h, sizeof(float_type) * size);
+    }
+
+    void register_starpu() {
+        starpu_swe_huv_matrix_register(&spu_huv, STARPU_MAIN_RAM, h, hu, hv, size, size, 1);
+    }
+
+    void unregister_starpu() {
+        if (spu_huv) {
+            starpu_data_unregister(spu_huv);
+            spu_huv = nullptr;
+        }
+    }
+
+    ~SWE_StarPU_Block1D() {
+        starpu_data_unregister(spu_huv);
+        starpu_free(h);
+        starpu_free(hu);
+        starpu_free(hv);
+    }
+};
 
 /**
  * SWE_Block is the main data structure to compute our shallow water model
@@ -88,28 +131,30 @@ struct SWE_StarPU_Block1D;
  * model and on the parallelisation approach.
  */
 class SWE_StarPU_Block {
-
 public:
 
-    using float_type = float;
     // object methods
     /// initialise unknowns to a specific scenario:
     void initScenario(float _offsetX, float _offsetY,
-                      SWE_Scenario &i_scenario, const bool i_multipleBlocks = false );
+                      SWE_Scenario &i_scenario, bool i_multipleBlocks = false);
+
     // set unknowns
     /// set the water height according to a given function
     void setWaterHeight(float (*_h)(float, float));
+
     /// set the momentum/discharge according to the provided functions
     void setDischarge(float (*_u)(float, float), float (*_v)(float, float));
+
     /// set the bathymetry to a uniform value
     void setBathymetry(float _b);
+
     /// set the bathymetry according to a given function
     void setBathymetry(float (*_b)(float, float));
 
     // defining boundary conditions
     /// set type of boundary condition for the specified boundary
     void setBoundaryType(BoundaryEdge edge, BoundaryType boundtype,
-                         const SWE_StarPU_Block1D* inflow = NULL);
+                         SWE_StarPU_Block *inflow = nullptr);
 //     void connectBoundaries(BoundaryEdge edge, SWE_Block &neighbour, BoundaryEdge neighEdge);
 
 
@@ -119,72 +164,88 @@ public:
      */
     float getMaxTimestep() const noexcept { return maxTimestep; };
 
-    // compute the largest allowed time step for the current grid block
-    void computeMaxTimestep( float i_dryTol = 0.1, float i_cflNumber = 0.4 );
-
-    /// compute the numerical fluxes for each edge of the Cartesian grid
-    /**
-     * The computation of fluxes strongly depends on the chosen numerical
-     * method. Hence, this purely virtual function has to be implemented
-     * in the respective derived classes.
-     */
-    virtual void computeNumericalFluxes() = 0;
-
-    /// compute the new values of the unknowns h, hu, and hv in all grid cells
-    /**
-     * based on the numerical fluxes (computed by computeNumericalFluxes)
-     * and the specified time step size dt, an Euler time step is executed.
-     * As the computational fluxes will depend on the numerical method,
-     * this purely virtual function has to be implemented separately for
-     * each specific numerical model (and parallelisation approach).
-     * @param dt	size of the time step
-     */
-    virtual void updateUnknowns(float dt) = 0;
 
     // access methods to grid sizes
     /// returns #nx, i.e. the grid size in x-direction
     int getNx() const noexcept { return nx; }
+
     /// returns #ny, i.e. the grid size in y-direction
     int getNy() const noexcept { return ny; }
+
 
     // Konstanten:
     /// static variable that holds the gravity constant (g = 9.81 m/s^2):
     static constexpr float g = 9.81;
-    virtual ~SWE_StarPU_Block() = default;
 
     ///Number of elements between one row and the next
-    inline int rowStride() const noexcept {return nx+2;}
-protected:
+    inline int rowStride() const noexcept { return nx; }
+
+    ///Number of elements between one row and the next
+    inline int bRowStride() const noexcept { return nx + 2; }
+
     // Constructor und Destructor
     SWE_StarPU_Block(int l_nx, int l_ny,
-              float l_dx, float l_dy);
+                     float l_dx, float l_dy);
 
-    // Sets the bathymetry on outflow and wall boundaries
-    void setBoundaryBathymetry();
+    void starpu_unregister() {
+        if (spu_huv) {
+            starpu_data_unregister(spu_huv);
+            spu_huv = nullptr;
+        }
+        if (spu_b) {
+            starpu_data_unregister(spu_b);
+            spu_b = nullptr;
+        }
+    }
 
-    /// set boundary conditions in ghost layers (set boundary conditions)
-    virtual void setBoundaryConditions();
+    virtual ~SWE_StarPU_Block() {
+        starpu_unregister();
+        if (h) {
+            starpu_free(h);
+        }
+        if (hu) {
+            starpu_free(hu);
+        }
+        if (hv) {
+            starpu_free(hv);
+        }
+        if (b) {
+            starpu_free(b);
+        }
 
-    // grid size: number of cells (incl. ghost layer in x and y direction:
-    int nx;	///< size of Cartesian arrays in x-direction
-    int ny;	///< size of Cartesian arrays in y-direction
-    // mesh size dx and dy:
-    float dx;	///<  mesh size of the Cartesian grid in x-direction
-    float dy;	///<  mesh size of the Cartesian grid in y-direction
+    }
 
-    // define arrays for unknowns:
-    // h (water level) and u,v (velocity in x and y direction)
-    float* h;	///< array that holds the water height for each element
-    float* hu; ///< array that holds the x-component of the momentum for each element (water height h multiplied by velocity in x-direction)
-    float* hv; ///< array that holds the y-component of the momentum for each element (water height h multiplied by velocity in y-direction)
-    float* b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
-
-    starpu_data_handle_t spu_h, spu_hu, spu_hv, spu_b;
+    void register_starpu() {
+        starpu_swe_huv_matrix_register(&spu_huv, STARPU_MAIN_RAM, h, hu, hv, nx, nx, ny);
+        starpu_matrix_data_register(&spu_b, STARPU_MAIN_RAM,
+                                    (uintptr_t) b, nx + 2, rowStride(), ny + 2, sizeof(decltype(*b)));
+    }
 
     /// type of boundary conditions at LEFT, RIGHT, TOP, and BOTTOM boundary
     BoundaryType boundary[4];
     /// for CONNECT boundaries: pointer to connected neighbour block
-    const SWE_StarPU_Block1D* neighbour[4];
+    //SWE_StarPU_Block1D boundaryData[4];
+    SWE_StarPU_Block *neighbours[4];
+protected:
+    // Sets the bathymetry on outflow and wall boundaries
+    void setBoundaryBathymetry();
+
+    // grid size: number of cells (incl. ghost layer in x and y direction:
+    int nx;    ///< size of Cartesian arrays in x-direction
+    int ny;    ///< size of Cartesian arrays in y-direction
+    // mesh size dx and dy:
+    float dx;    ///<  mesh size of the Cartesian grid in x-direction
+    float dy;    ///<  mesh size of the Cartesian grid in y-direction
+
+    // define arrays for unknowns:
+    // h (water level) and u,v (velocity in x and y direction)
+    float *h;    ///< array that holds the water height for each element
+    float *hu; ///< array that holds the x-component of the momentum for each element (water height h multiplied by velocity in x-direction)
+    float *hv; ///< array that holds the y-component of the momentum for each element (water height h multiplied by velocity in y-direction)
+    float *b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
+
+    starpu_data_handle_t spu_huv = nullptr;
+    starpu_data_handle_t spu_b = nullptr;
 
     /// maximum time step allowed to ensure stability of the method
     /**
@@ -194,31 +255,8 @@ protected:
     float maxTimestep;
 
     // offset of current block
-    float offsetX;	///< x-coordinate of the origin (left-bottom corner) of the Cartesian grid
-    float offsetY;	///< y-coordinate of the origin (left-bottom corner) of the Cartesian grid
-};
-
-/**
- * SWE_Block1D is a simple struct that can represent a single line or row of
- * SWE_Block unknowns (using the Float1D proxy class).
- * It is intended to unify the implementation of inflow and periodic boundary
- * conditions, as well as the ghost/copy-layer connection between several SWE_Block
- * grids.
- */
-struct SWE_StarPU_Block1D {
-    size_t size;
-    starpu_data_handle_t h;
-    starpu_data_handle_t hu;
-    starpu_data_handle_t hv;
-    SWE_StarPU_Block1D(
-            starpu_data_handle_t _h,
-            starpu_data_handle_t _hu,
-            starpu_data_handle_t _hv,
-            const size_t _size) :size(_size), h(_h), hu(_hu), hv(_hv){
-
-    }
-
-
+    float offsetX;    ///< x-coordinate of the origin (left-bottom corner) of the Cartesian grid
+    float offsetY;    ///< y-coordinate of the origin (left-bottom corner) of the Cartesian grid
 };
 
 #endif //SWE_SWE_STARPU_BLOCK_H

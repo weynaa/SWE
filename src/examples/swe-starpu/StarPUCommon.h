@@ -9,10 +9,6 @@
 #define STARPU_USE_CUDA
 #endif
 
-#ifdef ENABLE_OPENCL
-#define STARPU_USE_OPENCL
-#endif
-
 #include <starpu.h>
 
 #endif //SWE_STARPUCOMMON_H
