@@ -53,6 +53,7 @@
 
 
 #include "swe-starpu/SWE_StarPU_Block.h"
+#include "swe-starpu/codelets.h"
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
@@ -119,11 +120,21 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    auto l_block = SWE_StarPU_Block(l_nX,l_nY,l_dX,l_dY);
+    SWE_StarPU_Block l_block(l_nX,l_nY,l_dX,l_dY);
 
     l_block.initScenario(0,0,l_scenario);
 
     l_block.register_starpu();
+
+    auto side = BND_LEFT;
+    auto blockptr = &l_block;
+    starpu_task_insert(&SWECodelets::updateGhostLayers,
+            STARPU_VALUE,&side,sizeof(side),
+            STARPU_VALUE,&blockptr, sizeof(blockptr),
+            STARPU_W,l_block.boundaryData[side].starpuHandle(),
+            STARPU_R,l_block.huvData().starpuHandle(),
+            STARPU_R,l_block.huvData().starpuHandle(),
+            0);
 
 /*
     using Real = float;
@@ -216,6 +227,7 @@ int main(int argc, char **argv) {
     starpu_data_unregister(dataHandle);
     starpu_free(myMatrix);
     */
+    l_block.starpu_unregister();
     starpu_shutdown();
     return 0;
 }

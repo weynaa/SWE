@@ -25,38 +25,91 @@
  * grids.
  */
 
-struct SWE_StarPU_Block1D {
+/**
+ * Helper allocation Structure for a HUV-Matrix allocation, stored in a dense, row-major fashion
+ */
+struct SWE_StarPU_HUV_Allocation {
 
-    size_t size;
-    float_type *h = nullptr;
-    float_type *hu = nullptr;
-    float_type *hv = nullptr;
-    starpu_data_handle_t spu_huv;
+    size_t nX  =0;
+    size_t nY = 0;
+    float_type *_h = nullptr;
+    float_type *_hu = nullptr;
+    float_type *_hv = nullptr;
+    starpu_data_handle_t _spu_huv = nullptr;
 
-    explicit SWE_StarPU_Block1D(
-            const size_t _size) : size(_size) {
-        starpu_malloc((void **) &h, sizeof(float_type) * size);
-        starpu_malloc((void **) &h, sizeof(float_type) * size);
-        starpu_malloc((void **) &h, sizeof(float_type) * size);
-        starpu_malloc((void **) &h, sizeof(float_type) * size);
+    SWE_StarPU_HUV_Allocation() = default;
+
+    explicit SWE_StarPU_HUV_Allocation( const size_t _nX,const size_t _nY) : nX(_nX), nY(_nY) {
+        starpu_malloc((void **) &_h, sizeof(float_type) * nX*nY);
+        starpu_malloc((void **) &_hu, sizeof(float_type) *  nX*nY);
+        starpu_malloc((void **) &_hv, sizeof(float_type) *  nX*nY);
+    }
+
+    SWE_StarPU_HUV_Allocation(const SWE_StarPU_HUV_Allocation&) =delete;
+    SWE_StarPU_HUV_Allocation(SWE_StarPU_HUV_Allocation&& rval) noexcept {
+        _h = rval._h;
+        _hu = rval._hu;
+        _hv = rval._hv;
+        nX = rval.nX;
+        nY = rval.nY;
+
+        rval.nX = rval.nY = 0;
+        rval._h = rval._hu = rval._hv = nullptr;
+    }
+    SWE_StarPU_HUV_Allocation & operator=(const SWE_StarPU_HUV_Allocation&) = delete;
+    SWE_StarPU_HUV_Allocation & operator=(SWE_StarPU_HUV_Allocation && rval) noexcept {
+        _h = rval._h;
+        _hu = rval._hu;
+        _hv = rval._hv;
+        nX = rval.nX;
+        nY = rval.nY;
+
+        rval.nX = rval.nY = 0;
+        rval._h = rval._hu = rval._hv = nullptr;
+        return *this;
+    }
+
+    explicit operator bool() const {
+        return nX == 0 || nY == 0 || _h == nullptr || _hu == nullptr || _hv == nullptr;
+    }
+
+    float & h(const size_t x,const size_t y) const noexcept {
+        return _h[y*nX+x];
+    }
+    float & hu(const size_t x,const size_t y) const noexcept {
+        return _hu[y*nX+x];
+    }
+    float & hv(const size_t x,const size_t y) const noexcept {
+        return _hv[y*nX+x];
     }
 
     void register_starpu() {
-        starpu_swe_huv_matrix_register(&spu_huv, STARPU_MAIN_RAM, h, hu, hv, size, size, 1);
+        unregister_starpu();
+        starpu_swe_huv_matrix_register(&_spu_huv, STARPU_MAIN_RAM, _h, _hu, _hv,nX,nX, nY);
+    }
+
+    starpu_data_handle_t starpuHandle() const noexcept {
+        return _spu_huv;
     }
 
     void unregister_starpu() {
-        if (spu_huv) {
-            starpu_data_unregister(spu_huv);
-            spu_huv = nullptr;
+        if (_spu_huv) {
+            starpu_data_unregister(_spu_huv);
+            _spu_huv = nullptr;
         }
     }
 
-    ~SWE_StarPU_Block1D() {
-        starpu_data_unregister(spu_huv);
-        starpu_free(h);
-        starpu_free(hu);
-        starpu_free(hv);
+    ~SWE_StarPU_HUV_Allocation() {
+        unregister_starpu();
+        if(_h) {
+            starpu_free(_h);
+        }
+        if(_hu) {
+            starpu_free(_hu);
+        }
+        if(_hv) {
+            starpu_free(_hv);
+        }
     }
 };
 
@@ -177,21 +230,18 @@ public:
     /// static variable that holds the gravity constant (g = 9.81 m/s^2):
     static constexpr float g = 9.81;
 
-    ///Number of elements between one row and the next
-    inline int rowStride() const noexcept { return nx; }
 
-    ///Number of elements between one row and the next
-    inline int bRowStride() const noexcept { return nx + 2; }
+    inline float_type  & b(const size_t x, const size_t y) const noexcept {
+        assert(y < ny+2ull && x < nx+2ull);
+        return _b[y*(nx+2)+x];
+    }
 
     // Constructor und Destructor
     SWE_StarPU_Block(int l_nx, int l_ny,
                      float l_dx, float l_dy);
 
     void starpu_unregister() {
-        if (spu_huv) {
-            starpu_data_unregister(spu_huv);
-            spu_huv = nullptr;
-        }
+        huv_Block.unregister_starpu();
         if (spu_b) {
             starpu_data_unregister(spu_b);
             spu_b = nullptr;
@@ -200,31 +250,25 @@ public:
 
     virtual ~SWE_StarPU_Block() {
         starpu_unregister();
-        if (h) {
-            starpu_free(h);
-        }
-        if (hu) {
-            starpu_free(hu);
-        }
-        if (hv) {
-            starpu_free(hv);
-        }
-        if (b) {
-            starpu_free(b);
+        if (_b) {
+            starpu_free(_b);
         }
 
     }
 
     void register_starpu() {
-        starpu_swe_huv_matrix_register(&spu_huv, STARPU_MAIN_RAM, h, hu, hv, nx, nx, ny);
+        huv_Block.register_starpu();
         starpu_matrix_data_register(&spu_b, STARPU_MAIN_RAM,
-                                    (uintptr_t) b, nx + 2, rowStride(), ny + 2, sizeof(decltype(*b)));
+                                    (uintptr_t) _b, nx + 2, nx+2, ny + 2, sizeof(decltype(*_b)));
+    }
+    const SWE_StarPU_HUV_Allocation & huvData() const noexcept {
+        return huv_Block;
     }
 
     /// type of boundary conditions at LEFT, RIGHT, TOP, and BOTTOM boundary
     BoundaryType boundary[4];
     /// for CONNECT boundaries: pointer to connected neighbour block
-    //SWE_StarPU_Block1D boundaryData[4];
+    SWE_StarPU_HUV_Allocation boundaryData[4];
     SWE_StarPU_Block *neighbours[4];
 protected:
     // Sets the bathymetry on outflow and wall boundaries
@@ -239,12 +283,9 @@ protected:
 
     // define arrays for unknowns:
     // h (water level) and u,v (velocity in x and y direction)
-    float *h;    ///< array that holds the water height for each element
-    float *hu; ///< array that holds the x-component of the momentum for each element (water height h multiplied by velocity in x-direction)
-    float *hv; ///< array that holds the y-component of the momentum for each element (water height h multiplied by velocity in y-direction)
-    float *b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
+    float *_b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
 
-    starpu_data_handle_t spu_huv = nullptr;
+    SWE_StarPU_HUV_Allocation huv_Block;
     starpu_data_handle_t spu_b = nullptr;
 
     /// maximum time step allowed to ensure stability of the method

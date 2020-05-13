@@ -1,6 +1,12 @@
-//
-// Created by michael on 12.05.20.
-//
+/**
+ * StarPU interface for a handle to three equally sized matrices called h, hu, hv
+ * Required, since standard StarPU has a max limit of 8 data handles per task, therefore we combine these
+ * 3 data handles into one data interface in order to stay inside this limit.
+ *
+ *
+ * This is mostly boilerplate code of "Defining a Data Interface":
+ * http://starpu.gforge.inria.fr/testing/master/doc/html/DataManagement.html#DefiningANewDataInterface
+ */
 
 #include "SWE_HUV_Matrix.h"
 

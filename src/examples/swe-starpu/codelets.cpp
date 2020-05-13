@@ -1,42 +1,43 @@
-/*
+
 #include "codelets.h"
 #include "SWE_StarPU_Block.h"
-using float_type = SWE_StarPU_Block::float_type;
-void updateGhostLayers_cpu(void* buffers[], void* cl_arg){
-    SWE_StarPU_Block* thisBlock;
-    uint8_t side;
-    starpu_codelet_unpack_args(cl_arg, &thisBlock,&side);
-    auto h = (float_type *)buffers[0];
-    auto hu = (float_type *)buffers[1];
-    auto hv = (float_type *)buffers[2];
+
+void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
+    const SWE_StarPU_Block *thisBlock;
+    BoundaryEdge side;
+    starpu_codelet_unpack_args(cl_arg, &thisBlock, &side);
 #ifdef DBG
     cout << "Set simple boundary conditions " << endl << flush;
 #endif
-    const auto rowStride = thisBlock->rowStride();
-    const auto nx = thisBlock->getNx();
-    const auto ny = thisBlock->getNy();
+    auto myBlockData = buffers[1];
+    auto myBorderData = buffers[0];
 
-    const auto neighbourH = (const float_type*) buffers[3];
-    const auto neighbourHu = (const float_type*) buffers[4];
-    const auto neighbourHv = (const float_type*) buffers[5];
 
-    switch(thisBlock->boundary[side]) {
+
+    const bool vertical = side == BND_LEFT || side == BND_RIGHT;
+    const auto nx = STARPU_SWE_HUV_MATRIX_GET_NX(myBlockData);
+    const auto ny = STARPU_SWE_HUV_MATRIX_GET_NY(myBlockData);
+
+    switch (thisBlock->boundary[side]) {
         case WALL:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[j*rowStride+0] = h[j*rowStride+1];
-                hu[j*rowStride+0] = -hu[j*rowStride+1];
-                hv[j*rowStride+0] = hv[j*rowStride+1];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[j*rowStride+0] = h[j*rowStride+1];
-                hu[j*rowStride+0] = hu[j*rowStride+1];
-                hv[j*rowStride+0] = hv[j*rowStride+1];
-            };
+        case OUTFLOW: {
+            const bool wall = thisBlock->boundary[side] == WALL;
+            for (int j = 0; j < vertical ? ny : nx; j++) {
+                const size_t outerX = vertical ? 0 : j + 1;
+                const size_t innerX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? nx - 1 : j);
+                const size_t outerY = vertical ? j : 0;
+                const size_t innerY = side == BND_TOP ? 0 : (side == BND_BOTTOM ? ny - 1 : j);
+
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, outerX, outerY) =
+                        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, innerX, innerY);
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, outerX, outerY) = (vertical && wall ? -1.f : 1.f) *
+                                                                                 STARPU_SWE_HUV_MATRIX_GET_HU_VAL(
+                                                                                         myBlockData, innerX, innerY);
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, outerX, outerY) = (!vertical && wall ? -1.f : 1.f) *
+                                                                                 STARPU_SWE_HUV_MATRIX_GET_HV_VAL(
+                                                                                         myBlockData, innerX, innerY);
+
+            }
             break;
         }
         case CONNECT:
@@ -45,160 +46,75 @@ void updateGhostLayers_cpu(void* buffers[], void* cl_arg){
         default:
             assert(false);
             break;
-    };
+    }
 
-    // right boundary
-    switch(thisBlock->boundary[BND_RIGHT]) {
-        case WALL:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[j*rowStride+nx+1] = h[j*rowStride+nx];
-                hu[j*rowStride+nx+1] = -hu[j*rowStride+nx];
-                hv[j*rowStride+nx+1] = hv[j*rowStride+nx];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int j=1; j<=ny; j++) {
-                h[j*rowStride+nx+1] = h[j*rowStride+nx];
-                hu[j*rowStride+nx+1] = hu[j*rowStride+nx];
-                hv[j*rowStride+nx+1] = hv[j*rowStride+nx];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
 
-    // top boundary
-    switch(thisBlock->boundary[BND_TOP]) {
-        case WALL:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i] = h[1*rowStride+i];
-                hu[i] = hu[1*rowStride+i];
-                hv[i] = -hv[1*rowStride+i];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[i] = h[1*rowStride+i];
-                hu[i] = hu[1*rowStride+i];
-                hv[i] = hv[1*rowStride+i];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
+    //Update the corner values only the top and bottom boundary contain these
+    if (side == BND_TOP) {
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, 0, 0);
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, 0, 0);
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, 0, 0);
 
-    // bottom boundary
-    switch(thisBlock->boundary[BND_BOTTOM]) {
-        case WALL:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[(ny+1)*rowStride+i] = h[ny*rowStride+i];
-                hu[(ny+1)*rowStride+i] = hu[ny*rowStride+i];
-                hv[(ny+1)*rowStride+i] = -hv[ny*rowStride+i];
-            };
-            break;
-        }
-        case OUTFLOW:
-        {
-            for(int i=1; i<=nx; i++) {
-                h[(ny+1)*rowStride+i] = h[ny*rowStride+i];
-                hu[(ny+1)*rowStride+i] = hu[ny*rowStride+i];
-                hv[(ny+1)*rowStride+i] = hv[ny*rowStride+i];
-            };
-            break;
-        }
-        case CONNECT:
-        case PASSIVE:
-            break;
-        default:
-            assert(false);
-            break;
-    };
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, nx - 1, 0);
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, nx - 1, 0);
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, nx - 1, 0);
+    }
+    if (side == BND_BOTTOM) {
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, 0, ny - 1);
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, 0, ny - 1);
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, 0, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, 0, ny - 1);
 
-    //Update the 4 corners
-    h [0] = h[1*rowStride+1];
-    hu[0] = hu[1*rowStride+1];
-    hv[0] = hv[1*rowStride+1];
-
-    h [(ny+1)*rowStride] = h [ny*rowStride+1];
-    hu[(ny+1)*rowStride] = hu[ny*rowStride+1];
-    hv[(ny+1)*rowStride] = hv[ny*rowStride+1];
-
-    h [nx+1] = h [1*rowStride+nx];
-    hu[nx+1] = hu[1*rowStride+nx];
-    hv[nx+1] = hv[1*rowStride+nx];
-
-    h [(ny+1)*rowStride+nx+1] = h [ny*rowStride+nx];
-    hu[(ny+1)*rowStride+nx+1] = hu[ny*rowStride+nx];
-    hv[(ny+1)*rowStride+nx+1] = hv[ny*rowStride+nx];
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, nx - 1, ny - 1);
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, nx - 1, ny - 1);
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, nx + 1, 0) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, nx - 1, ny - 1);
+    }
 
 #ifdef DBG
     cout << "Set CONNECT boundary conditions in main memory " << endl << flush;
 #endif
-    // left boundary
-    if (thisBlock->boundary[BND_LEFT] == CONNECT) {
-        for(int j=0; j<=ny+1; j++) {
-            h[j*rowStride()] = neighbour[BND_LEFT]->h[j];
-            hu[j*rowStride()] = neighbour[BND_LEFT]->hu[j];
-            hv[j*rowStride()] = neighbour[BND_LEFT]->hv[j];
-        };
-    };
 
-    // right boundary
-    if(boundary[BND_RIGHT] == CONNECT) {
-        for(int j=0; j<=ny+1; j++) {
-            h[nx+1][j] = neighbour[BND_RIGHT]->h[j];
-            hu[nx+1][j] = neighbour[BND_RIGHT]->hu[j];
-            hv[nx+1][j] = neighbour[BND_RIGHT]->hv[j];
-        };
-    };
 
-    // bottom boundary
-    if(boundary[BND_BOTTOM] == CONNECT) {
-        for(int i=0; i<=nx+1; i++) {
-            h[i][0] = neighbour[BND_BOTTOM]->h[i];
-            hu[i][0] = neighbour[BND_BOTTOM]->hu[i];
-            hv[i][0] = neighbour[BND_BOTTOM]->hv[i];
-        };
-    };
+    if (thisBlock->boundary[side] == CONNECT) {
+        auto myNeighbourData = buffers[2];
+        const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
+        const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
+        for (int i = 0; i < vertical ? ny : nx; ++i) {
+            const size_t boundaryX = vertical ? 0 : 1 + i;
+            const size_t boundaryY = vertical ? i : 0;
 
-    // top boundary
-    if(boundary[BND_TOP] == CONNECT) {
-        for(int i=0; i<=nx+1; i++) {
-            h[i][ny+1] = neighbour[BND_TOP]->h[i];
-            hu[i][ny+1] = neighbour[BND_TOP]->hu[i];
-            hv[i][ny+1] = neighbour[BND_TOP]->hv[i];
+            const size_t neighbourX = side == BND_LEFT ? neighbourNX - 1 : (side == BND_RIGHT ? 0 : i);
+            const size_t neigbhourY = side == BND_TOP ? neighbourNY - 1 : (side == BND_BOTTOM ? 0 : i);
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myNeighbourData, neighbourX, neigbhourY);
         }
-    };
-
-#ifdef DBG
-    cout << "Synchronize ghost layers (for heterogeneous memory) " << endl << flush;
-#endif
-    // synchronize the ghost layers (for PASSIVE and CONNECT conditions)
-    // with accelerator memory
+    }
 }
 
-starpu_codelet updateGhostLayers = [](){
+starpu_codelet updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
+    codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = updateGhostLayers_cpu;
-    codelet.nbuffers = 6;
-    codelet.modes = {STARPU_RW,STARPU_R,STARPU_R, STARPU_R,STARPU_R};
+    codelet.nbuffers = 3;
+    codelet.modes[0] = STARPU_W;
+    codelet.modes[1] = STARPU_R;
+    codelet.modes[2] = STARPU_R;
+    return codelet;
 }();
 
-*/
