@@ -15,6 +15,6 @@ namespace SWECodelets{
      *  each boundary updates itself by pulling from the neighbouring layer causing less
      *  synchronicity
      */
-    static starpu_codelet updateGhostLayers;
+    extern starpu_codelet updateGhostLayers;
 }
 #endif //SWE_CODELETS_H

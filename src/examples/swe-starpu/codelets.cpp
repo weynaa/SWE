@@ -107,10 +107,10 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
     }
 }
 
-starpu_codelet updateGhostLayers = []() noexcept {
+starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
-    codelet.cpu_funcs[0] = updateGhostLayers_cpu;
+    codelet.cpu_funcs[0] = &updateGhostLayers_cpu;
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_W;
     codelet.modes[1] = STARPU_R;

@@ -241,6 +241,10 @@ public:
                      float l_dx, float l_dy);
 
     void starpu_unregister() {
+        boundaryData[BND_LEFT].unregister_starpu();
+        boundaryData[BND_TOP].unregister_starpu();
+        boundaryData[BND_BOTTOM].unregister_starpu();
+        boundaryData[BND_RIGHT].unregister_starpu();
         huv_Block.unregister_starpu();
         if (spu_b) {
             starpu_data_unregister(spu_b);
@@ -260,6 +264,11 @@ public:
         huv_Block.register_starpu();
         starpu_matrix_data_register(&spu_b, STARPU_MAIN_RAM,
                                     (uintptr_t) _b, nx + 2, nx+2, ny + 2, sizeof(decltype(*_b)));
+        boundaryData[BND_LEFT].register_starpu();
+        boundaryData[BND_TOP].register_starpu();
+        boundaryData[BND_BOTTOM].register_starpu();
+        boundaryData[BND_RIGHT].register_starpu();
+
     }
     const SWE_StarPU_HUV_Allocation & huvData() const noexcept {
         return huv_Block;
