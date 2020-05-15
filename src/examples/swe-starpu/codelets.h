@@ -3,7 +3,7 @@
 #define SWE_CODELETS_H
 #include "StarPUCommon.h"
 
-namespace SWECodelets{
+struct SWECodelets{
     /**
      * Codelet, which updates the Gost Layer for one side of the task
      * Required Paramters:
@@ -15,6 +15,11 @@ namespace SWECodelets{
      *  each boundary updates itself by pulling from the neighbouring layer causing less
      *  synchronicity
      */
-    extern starpu_codelet updateGhostLayers;
-}
+    static starpu_codelet updateGhostLayers;
+
+    /**
+     * Codelet which writes the result
+     */
+    static starpu_codelet resultWriter;
+};
 #endif //SWE_CODELETS_H

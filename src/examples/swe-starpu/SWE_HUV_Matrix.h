@@ -20,9 +20,9 @@ struct SWE_HUV_Matrix_interface {
 #define STARPU_SWE_HUV_MATRIX_GET_NY(x) (((SWE_HUV_Matrix_interface*)(x))->nY)
 #define STARPU_SWE_HUV_MATRIX_GET_LD(x) (((SWE_HUV_Matrix_interface*)(x))->ld)
 
-#define STARPU_SWE_HUV_MATRIX_GET_H_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_H_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(x)+x])
-#define STARPU_SWE_HUV_MATRIX_GET_HU_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_HU_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(x)+x])
-#define STARPU_SWE_HUV_MATRIX_GET_HV_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_HV_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(x)+x])
+#define STARPU_SWE_HUV_MATRIX_GET_H_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_H_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(handle)+x])
+#define STARPU_SWE_HUV_MATRIX_GET_HU_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_HU_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(handle)+x])
+#define STARPU_SWE_HUV_MATRIX_GET_HV_VAL(handle,x,y) (STARPU_SWE_HUV_MATRIX_GET_HV_PTR(handle)[y*STARPU_SWE_HUV_MATRIX_GET_LD(handle)+x])
 
 
 void starpu_swe_huv_matrix_register(starpu_data_handle_t *outHandle,unsigned homeNode,

@@ -1,11 +1,12 @@
 
 #include "codelets.h"
 #include "SWE_StarPU_Block.h"
+#include "writer/Writer.hh"
 
 void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *thisBlock;
     BoundaryEdge side;
-    starpu_codelet_unpack_args(cl_arg, &thisBlock, &side);
+    starpu_codelet_unpack_args(cl_arg, &side,&thisBlock);
 #ifdef DBG
     cout << "Set simple boundary conditions " << endl << flush;
 #endif
@@ -22,7 +23,7 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
         case WALL:
         case OUTFLOW: {
             const bool wall = thisBlock->boundary[side] == WALL;
-            for (int j = 0; j < vertical ? ny : nx; j++) {
+            for (size_t j = 0; j < (vertical ? ny : nx); j++) {
                 const size_t outerX = vertical ? 0 : j + 1;
                 const size_t innerX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? nx - 1 : j);
                 const size_t outerY = vertical ? j : 0;
@@ -90,7 +91,7 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
         auto myNeighbourData = buffers[2];
         const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
         const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
-        for (int i = 0; i < vertical ? ny : nx; ++i) {
+        for (size_t i = 0; i < (vertical ? ny : nx); ++i) {
             const size_t boundaryX = vertical ? 0 : 1 + i;
             const size_t boundaryY = vertical ? i : 0;
 
@@ -115,6 +116,20 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     codelet.modes[0] = STARPU_W;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
+    return codelet;
+}();
+
+void writeResult_cpu(void *buffers[], void *cl_arg) {
+    io::Writer* writer;
+    
+}
+
+starpu_codelet SWECodelets::resultWriter = []()noexcept{
+    starpu_codelet codelet = {};
+    codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &writeResult_cpu;
+    codelet.nbuffers = 1;
+    codelet.modes[0] = STARPU_R;
     return codelet;
 }();
 

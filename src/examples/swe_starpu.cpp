@@ -135,6 +135,30 @@ int main(int argc, char **argv) {
             STARPU_R,l_block.huvData().starpuHandle(),
             STARPU_R,l_block.huvData().starpuHandle(),
             0);
+    side = BND_RIGHT;
+    starpu_task_insert(&SWECodelets::updateGhostLayers,
+                       STARPU_VALUE,&side,sizeof(side),
+                       STARPU_VALUE,&blockptr, sizeof(blockptr),
+                       STARPU_W,l_block.boundaryData[side].starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       0);
+    side = BND_BOTTOM;
+    starpu_task_insert(&SWECodelets::updateGhostLayers,
+                       STARPU_VALUE,&side,sizeof(side),
+                       STARPU_VALUE,&blockptr, sizeof(blockptr),
+                       STARPU_W,l_block.boundaryData[side].starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       0);
+    side = BND_TOP;
+    starpu_task_insert(&SWECodelets::updateGhostLayers,
+                       STARPU_VALUE,&side,sizeof(side),
+                       STARPU_VALUE,&blockptr, sizeof(blockptr),
+                       STARPU_W,l_block.boundaryData[side].starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       STARPU_R,l_block.huvData().starpuHandle(),
+                       0);
 
 /*
     using Real = float;
