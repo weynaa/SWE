@@ -29,6 +29,10 @@
 #include "tools/help.hh"
 #include <memory>
 
+#ifdef ENABLE_STARPU
+#include <starpu/SWE_HUV_Matrix.h>
+#endif
+
 namespace io {
 	struct BoundarySize;
 	class Writer;
@@ -115,6 +119,13 @@ public:
             const Float2D &i_hu,
             const Float2D &i_hv,
             float i_time) = 0;
+
+#ifdef ENABLE_STARPU
+	virtual void writeTimeStep(
+	        const SWE_HUV_Matrix_interface & huvMatrix,
+	        float i_time
+	        ) = 0;
+#endif
 };
 
 #endif // WRITER_HH_

@@ -33,12 +33,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/starpu/CMakeLists.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/SWE_HUV_Matrix.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/SWE_HUV_Matrix.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/StarPUCommon.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/StarPUCommon.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/writer/NetCdfWriter.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/NetCdfWriter.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/writer/Writer.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/Writer.hh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,6 +55,13 @@
     <option name="formatViaClangd" value="false" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CMakeLists.txt" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -65,7 +78,12 @@
     <property name="cf.first.check.clang-format" value="false" />
     <property name="settings.editor.selected.configurable" value="preferences.editor" />
   </component>
-  <component name="RunManager" selected="CMake Application.swe-mpi">
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/starpu" />
+    </key>
+  </component>
+  <component name="RunManager" selected="CMake Application.swe-starpu">
     <configuration name="swe-mpi" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-mpi" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-mpi">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
@@ -114,6 +132,7 @@
       <workItem from="1589370752096" duration="16028000" />
       <workItem from="1589471982094" duration="1894000" />
       <workItem from="1589552523060" duration="6018000" />
+      <workItem from="1589636866189" duration="2150000" />
     </task>
     <servers />
   </component>
@@ -201,10 +220,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="744" y="306" key="refactoring.ChangeSignatureDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589285208921" />
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589559183400">
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589646970677">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589559183400" />
+    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589646970677" />
     <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog" timestamp="1588695013534">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>

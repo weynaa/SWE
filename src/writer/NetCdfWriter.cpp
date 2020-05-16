@@ -223,3 +223,13 @@ void io::NetCdfWriter::writeTimeStep( const Float2D &i_h,
 	if (flush > 0 && timeStep % flush == 0)
 		nc_sync(dataFile);
 }
+
+#ifdef ENABLE_STARPU
+void writeTimeStep(
+	        const SWE_HUV_Matrix_interface & huvMatrix,
+	        float i_time
+	        )
+	        {
+
+	        }
+#endif

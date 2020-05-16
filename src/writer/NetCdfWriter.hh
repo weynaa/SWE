@@ -66,6 +66,15 @@ private:
     void writeVarTimeDependent( const Float2D &i_matrix,
                                 int i_ncVariable);
 
+
+#ifdef ENABLE_STARPU
+	void writeTimeStep(
+	        const SWE_HUV_Matrix_interface & huvMatrix,
+	        float i_time
+	        );
+#endif
+
+
     // writes time independent variables.
     void writeVarTimeIndependent( const Float2D &i_matrix,
                                   int i_ncVariable);

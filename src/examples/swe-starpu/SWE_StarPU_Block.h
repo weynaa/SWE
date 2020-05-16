@@ -7,8 +7,8 @@
 
 #include "tools/help.hh"
 #include "scenarios/SWE_Scenario.hh"
-#include "StarPUCommon.h"
-#include "SWE_HUV_Matrix.h"
+#include "starpu/StarPUCommon.h"
+#include "starpu/SWE_HUV_Matrix.h"
 
 #include <iostream>
 #include <fstream>

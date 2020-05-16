@@ -1,7 +1,7 @@
 
 #ifndef SWE_CODELETS_H
 #define SWE_CODELETS_H
-#include "StarPUCommon.h"
+#include "starpu/StarPUCommon.h"
 
 struct SWECodelets{
     /**

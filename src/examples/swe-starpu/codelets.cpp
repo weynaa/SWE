@@ -121,6 +121,12 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
 
 void writeResult_cpu(void *buffers[], void *cl_arg) {
     io::Writer* writer;
+    float timestamp;
+    starpu_codelet_unpack_args(cl_arg,&writer,&timestamp);
+
+    const auto  huvMatrix = reinterpret_cast<SWE_HUV_Matrix_interface *>(buffers[0]);
+
+    writer->writeTimeStep(*huvMatrix,timestamp);
     
 }
 
