@@ -157,24 +157,7 @@ int main( int argc, char** argv ) {
   std::string l_fileName = generateBaseFileName(l_baseName,0,0);
   //boundary size of the ghost layers
   io::BoundarySize l_boundarySize = {{1, 1, 1, 1}};
-  /*
-#ifdef WRITENETCDF
-  //construct a NetCdfWriter
-  io::NetCdfWriter l_writer( l_fileName,
-		  l_waveBlock->getBathymetry(),
-		  l_boundarySize,
-		  l_nX, l_nY,
-		  l_dX, l_dY,
-		  l_originX, l_originY);
-#else
-  // consturct a VtkWriter
-  io::VtkWriter l_writer( l_fileName,
-		  l_waveBlock->getBathymetry(),
-		  l_boundarySize,
-		  l_nX, l_nY,
-		  l_dX, l_dY );
-#endif
-  */
+
   auto l_writer = io::Writer::createWriterInstance(
           l_fileName,
           l_waveBlock->getBathymetry(),

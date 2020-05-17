@@ -73,13 +73,13 @@ struct SWE_StarPU_HUV_Allocation {
         return nX == 0 || nY == 0 || _h == nullptr || _hu == nullptr || _hv == nullptr;
     }
 
-    float & h(const size_t x,const size_t y) const noexcept {
+    float_type & h(const size_t x,const size_t y) noexcept {
         return _h[y*nX+x];
     }
-    float & hu(const size_t x,const size_t y) const noexcept {
+    float_type & hu(const size_t x,const size_t y) noexcept {
         return _hu[y*nX+x];
     }
-    float & hv(const size_t x,const size_t y) const noexcept {
+    float_type & hv(const size_t x,const size_t y) noexcept {
         return _hv[y*nX+x];
     }
 

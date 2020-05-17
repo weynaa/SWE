@@ -27,7 +27,7 @@ namespace io {
                           float _dX, float _dY,
                           float _originX, float _originY) :
                 originX(_originX), originY(_originY),
-                dX(_dX), dY(_dY), fileName(_fileName), nX(_nX), nY(_nY) {
+                dX(_dX), dY(_dY), fileName(_fileName + ".nc"), nX(_nX), nY(_nY) {
             int status;
 
             //create a netCDF-file, an existing file will be replaced

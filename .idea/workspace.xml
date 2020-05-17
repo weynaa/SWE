@@ -33,15 +33,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="129ad1ea-2011-4276-ba9c-f4d913fc0ea0" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/writer/StarPUBlockWriter.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/writer/Writer.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/Writer.hh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe_simple.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_simple.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/writer/StarPUBlockWriter.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/StarPUBlockWriter.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -105,7 +101,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1589722472421</updated>
-      <workItem from="1589722477688" duration="12030000" />
+      <workItem from="1589722477688" duration="15360000" />
     </task>
     <servers />
   </component>
@@ -128,64 +124,53 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="418" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589723571823" />
-    <state x="723" y="265" key="#xdebugger.evaluate" timestamp="1589733979800">
+    <state x="614" y="231" key="#xdebugger.evaluate" timestamp="1589738866183">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="723" y="265" key="#xdebugger.evaluate/0.0.1920.1040@0.0.1920.1040" timestamp="1589733979800" />
-    <state width="435" height="506" key="DebuggerActiveHint" timestamp="1589733946820">
+    <state x="614" y="231" key="#xdebugger.evaluate/0.0.1920.1040@0.0.1920.1040" timestamp="1589738866183" />
+    <state width="443" height="506" key="DebuggerActiveHint" timestamp="1589738553333">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="435" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1589733946820" />
-    <state width="1874" height="369" key="GridCell.Tab.0.bottom" timestamp="1589734502004">
+    <state width="443" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1589738553333" />
+    <state width="1874" height="369" key="GridCell.Tab.0.bottom" timestamp="1589739048263">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
-    <state width="1874" height="369" key="GridCell.Tab.0.center" timestamp="1589734502004">
+    <state width="1874" height="369" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048263" />
+    <state width="1874" height="369" key="GridCell.Tab.0.center" timestamp="1589739048262">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
-    <state width="1874" height="369" key="GridCell.Tab.0.left" timestamp="1589734502004">
+    <state width="1874" height="369" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048262" />
+    <state width="1874" height="369" key="GridCell.Tab.0.left" timestamp="1589739048262">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
-    <state width="1874" height="369" key="GridCell.Tab.0.right" timestamp="1589734502004">
+    <state width="1874" height="369" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048262" />
+    <state width="1874" height="369" key="GridCell.Tab.0.right" timestamp="1589739048262">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
-    <state width="1874" height="369" key="GridCell.Tab.1.bottom" timestamp="1589734502005">
+    <state width="1874" height="369" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048262" />
+    <state width="1874" height="369" key="GridCell.Tab.1.bottom" timestamp="1589739048184">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
-    <state width="1874" height="369" key="GridCell.Tab.1.center" timestamp="1589734502005">
+    <state width="1874" height="369" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048184" />
+    <state width="1874" height="369" key="GridCell.Tab.1.center" timestamp="1589739048184">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
-    <state width="1874" height="369" key="GridCell.Tab.1.left" timestamp="1589734502004">
+    <state width="1874" height="369" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048184" />
+    <state width="1874" height="369" key="GridCell.Tab.1.left" timestamp="1589739048184">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
-    <state width="1874" height="369" key="GridCell.Tab.1.right" timestamp="1589734502005">
+    <state width="1874" height="369" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048184" />
+    <state width="1874" height="369" key="GridCell.Tab.1.right" timestamp="1589739048184">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="369" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
+    <state width="1874" height="369" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589739048184" />
     <state x="664" y="259" width="592" height="522" key="find.popup" timestamp="1589728011792">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="664" y="259" width="592" height="522" key="find.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589728011792" />
-    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup" timestamp="1589734435078">
+    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup" timestamp="1589739088033">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589734435078" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/src/writer/StarPUBlockWriter.h</url>
-          <line>91</line>
-          <option name="timeStamp" value="5" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589739088033" />
   </component>
 </project>
