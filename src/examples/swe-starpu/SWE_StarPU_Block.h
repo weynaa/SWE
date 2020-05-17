@@ -113,76 +113,6 @@ struct SWE_StarPU_HUV_Allocation {
     }
 };
 
-/**
- * SWE_Block is the main data structure to compute our shallow water model
- * on a single Cartesian grid block:
- * SWE_Block is an abstract class (and interface) that should be extended
- * by respective implementation classes.
- *
- * <h3>Cartesian Grid for Discretization:</h3>
- *
- * SWE_Blocks uses a regular Cartesian grid of size #nx by #ny, where each
- * grid cell carries three unknowns:
- * - the water level #h
- * - the momentum components #hu and #hv (in x- and y- direction, resp.)
- * - the bathymetry #b
- *
- * Each of the components is stored as a 2D array, implemented as a Float2D object,
- * and are defined on grid indices [0,..,#nx+1]*[0,..,#ny+1].
- * The computational domain is indexed with [1,..,#nx]*[1,..,#ny].
- *
- * The mesh sizes of the grid in x- and y-direction are stored in static variables
- * #dx and #dy. The position of the Cartesian grid in space is stored via the
- * coordinates of the left-bottom corner of the grid, in the variables
- * #offsetX and #offsetY.
- *
- * <h3>Ghost layers:</h3>
- *
- * To implement the behaviour of the fluid at boundaries and for using
- * multiple block in serial and parallel settings, SWE_Block adds an
- * additional layer of so-called ghost cells to the Cartesian grid,
- * as illustrated in the following figure.
- * Cells in the ghost layer have indices 0 or #nx+1 / #ny+1.
- *
- * \image html ghost_cells.gif
- *
- * <h3>Memory Model:</h3>
- *
- * The variables #h, #hu, #hv for water height and momentum will typically be
- * updated by classes derived from SWE_Block. However, it is not assumed that
- * such and updated will be performed in every time step.
- * Instead, subclasses are welcome to update #h, #hu, and #hv in a lazy fashion,
- * and keep data in faster memory (incl. local memory of acceleration hardware,
- * such as GPGPUs), instead.
- *
- * It is assumed that the bathymetry data #b is not changed during the algorithm
- * (up to the exceptions mentioned in the following).
- *
- * To force a synchronization of the respective data structures, the following
- * methods are provided as part of SWE_Block:
- * - synchAfterWrite() to synchronize #h, #hu, #hv, and #b after an external update
- *   (reading a file, e.g.);
- * - synchWaterHeightAfterWrite(), synchDischargeAfterWrite(), synchBathymetryAfterWrite():
- *   to synchronize only #h or momentum (#hu and #hv) or bathymetry #b;
- * - synchGhostLayerAfterWrite() to synchronize only the ghost layers
- * - synchBeforeRead() to synchronize #h, #hu, #hv, and #b before an output of the
- *   variables (writing a visualization file, e.g.)
- * - synchWaterHeightBeforeRead(), synchDischargeBeforeRead(), synchBathymetryBeforeRead():
- *   as synchBeforeRead(), but only for the specified variables
- * - synchCopyLayerBeforeRead(): synchronizes the copy layer only (i.e., a layer that
- *   is to be replicated in a neighbouring SWE_Block.
- *
- * <h3>Derived Classes</h3>
- *
- * As SWE_Block just provides an abstract base class together with the most
- * important data structures, the implementation of concrete models is the
- * job of respective derived classes (see the class diagram at the top of this
- * page). Similar, parallel implementations that are based on a specific
- * parallel programming model (such as OpenMP) or parallel architecture
- * (such as GPU/CUDA) should form subclasses of their own.
- * Please refer to the documentation of these classes for more details on the
- * model and on the parallelisation approach.
- */
 class SWE_StarPU_Block {
 public:
 
@@ -272,6 +202,9 @@ public:
     }
     const SWE_StarPU_HUV_Allocation & huvData() const noexcept {
         return huv_Block;
+    }
+    starpu_data_handle_t bStarpuHandle() const noexcept {
+        return spu_b;
     }
 
     /// type of boundary conditions at LEFT, RIGHT, TOP, and BOTTOM boundary

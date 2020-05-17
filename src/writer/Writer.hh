@@ -119,13 +119,6 @@ public:
             const Float2D &i_hu,
             const Float2D &i_hv,
             float i_time) = 0;
-
-#ifdef ENABLE_STARPU
-	virtual void writeTimeStep(
-	        const SWE_HUV_Matrix_interface & huvMatrix,
-	        float i_time
-	        ) = 0;
-#endif
 };
 
 #endif // WRITER_HH_

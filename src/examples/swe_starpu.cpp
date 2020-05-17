@@ -30,9 +30,10 @@
 #include <cstdlib>
 #include <string>
 #include <iostream>
+#include <memory>
 #include "blocks/SWE_Block.hh"
 
-#include "writer/Writer.hh"
+#include "writer/StarPUBlockWriter.h"
 
 #ifdef ASAGI
 #include "scenarios/SWE_AsagiScenario.hh"
@@ -110,6 +111,8 @@ int main(int argc, char **argv) {
         l_checkPoints[cp] = cp*(l_endSimulation/l_numberOfCheckPoints);
     }
 
+
+
     starpu_conf conf = {};
     starpu_conf_init(&conf);
     //conf.ncuda=0;
@@ -119,12 +122,26 @@ int main(int argc, char **argv) {
         std::cerr << "Could not initialize StarPU!\n";
         return 1;
     }
+    auto l_originX = l_scenario.getBoundaryPos(BND_LEFT);
+    auto l_originY = l_scenario.getBoundaryPos(BND_BOTTOM);
 
     SWE_StarPU_Block l_block(l_nX,l_nY,l_dX,l_dY);
 
-    l_block.initScenario(0,0,l_scenario);
 
+
+    auto l_fileName = generateBaseFileName(l_baseName,0,0);
+
+
+    l_block.initScenario(0,0,l_scenario);
     l_block.register_starpu();
+    auto l_writer = std::make_shared<io::StarPUBlockWriter>(
+            l_fileName,
+            l_nX,l_nY,
+            l_dX,l_dY,
+            0,0
+            );
+
+
 
     auto side = BND_LEFT;
     auto blockptr = &l_block;
@@ -160,97 +177,21 @@ int main(int argc, char **argv) {
                        STARPU_R,l_block.huvData().starpuHandle(),
                        0);
 
-/*
-    using Real = float;
-    Real* b = nullptr;
-    starpu_malloc((void**)&b, sizeof(Real**));
-    struct SOA{
-        using float_type = Real;
-        void* h = nullptr;
-        void* hv = nullptr;
-        void* hu = nullptr;
-        starpu_data_handle_t spu_h = nullptr;
-        starpu_data_handle_t spu_hv = nullptr;
-        starpu_data_handle_t spu_hu = nullptr;
-
-        SOA() = default;
-        explicit SOA(const size_t nX, const size_t nY){
-            starpu_malloc(&h, sizeof(float_type)*nX*nY);
-            starpu_malloc(&hu, sizeof(float_type)*nX*nY);
-            starpu_malloc(&hv, sizeof(float_type)*nX*nY);
-
-            starpu_matrix_data_register(&spu_h, STARPU_MAIN_RAM, (uintptr_t) h, nX, nX, nY,
-                                        sizeof(float_type));
-            starpu_matrix_data_register(&spu_hu, STARPU_MAIN_RAM, (uintptr_t) hu, nX, nX, nY,
-                                        sizeof(float_type));
-            starpu_matrix_data_register(&spu_hv, STARPU_MAIN_RAM, (uintptr_t) hv, nX, nX, nY,
-                                        sizeof(float_type));
-        }
-
-        ~SOA(){
-            if(spu_h) {
-                starpu_data_unregister(spu_h);
-            }
-            if(spu_hu) {
-                starpu_data_unregister(spu_hu);
-            }
-            if(spu_hv) {
-                starpu_data_unregister(spu_hv);
-            }
-            if(h) {
-                starpu_free(h);
-            }
-            if(hu) {
-                starpu_free(hu);
-            }
-            if(hv) {
-                starpu_free(hv);
-            }
-        }
-    };
-
-    constexpr uint8_t NLAYERS = 2; //Number of Data copies we have locally. At leas two to have explicit read/write regions
-    SOA workingData[NLAYERS];
-
-    constexpr uint32_t nBlocksX = 3;
-    constexpr uint32_t nBlocksY = 3;
-
-
-    for(auto i = 0; i < NLAYERS;++i) {
-        workingData[i] = SOA(l_nX+1,l_nY+1);
-        //Divide X-Wise:
-        starpu_data_filter rowFilter = {};
-        rowFilter.filter_func = starpu_matrix_filter_block;
-        rowFilter.nchildren = nBlocksY;
-        starpu_data_filter colFilter = {};
-        colFilter.filter_func = starpu_matrix_filter_vertical_block;
-        colFilter.nchildren = nBlocksX;
-        starpu_data_map_filters(workingData[i], 2, &rowFilter, &colFilter);
-        starpu_data_filter readRowFilter = {};
-        readRowFilter.filter_func = starpu_matrix_filter_block_shadow;
-        readRowFilter.nchildren = nBlocksY;
-
-        starpu_data_filter readColFilter = {};
-        readColFilter.filter_func = starpu_matrix_filter_vertical_block_shadow;
-        readColFilter.nchildren = nBlocksX;
-        readColFilter.
-        starpu_data_map_filters(workingData[i], 2, &rowFilter, &colFilter);
-        for (unsigned y = 0; y < nBlocksY; ++y) {
-            for (unsigned x = 0; x < nBlocksX; ++x) {
-                auto blockHandle = starpu_data_get_sub_data(workingData[i], 2, y, x);
-
-            }
-        }
-    }
-
-
-
-
-
-    starpu_task_wait_for_all();
-    starpu_data_unregister(dataHandle);
-    starpu_free(myMatrix);
-    */
+    const auto writerPtr =  l_writer.get();
+    float timestamp = 0;
+    starpu_task_insert(&SWECodelets::resultWriter,
+            STARPU_VALUE, &writerPtr,sizeof(writerPtr),
+            STARPU_VALUE, &timestamp, sizeof(timestamp),
+            STARPU_R, l_block.huvData().starpuHandle(),
+            STARPU_R, l_block.bStarpuHandle(),
+            0);
+    timestamp = 1;
+    starpu_task_insert(&SWECodelets::resultWriter,
+                       STARPU_VALUE, &writerPtr,sizeof(writerPtr),
+                       STARPU_VALUE, &timestamp, sizeof(timestamp),
+                       STARPU_R, l_block.huvData().starpuHandle(),
+                       STARPU_R, l_block.bStarpuHandle(),
+                       0);
     l_block.starpu_unregister();
     starpu_shutdown();
     return 0;

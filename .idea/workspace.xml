@@ -32,17 +32,14 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/starpu/CMakeLists.txt" afterDir="false" />
+    <list default="true" id="129ad1ea-2011-4276-ba9c-f4d913fc0ea0" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/writer/StarPUBlockWriter.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/SWE_HUV_Matrix.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_HUV_Matrix.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/SWE_HUV_Matrix.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/SWE_StarPU_Block.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/StarPUCommon.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/starpu/StarPUCommon.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe-starpu/codelets.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/writer/NetCdfWriter.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/NetCdfWriter.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/swe_starpu.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/NetCdfWriter.hh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/writer/Writer.hh" beforeDir="false" afterPath="$PROJECT_DIR$/src/writer/Writer.hh" afterDir="false" />
     </list>
@@ -55,17 +52,10 @@
     <option name="formatViaClangd" value="false" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="CMakeLists.txt" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectId" id="1bOiNKElZYyK0VoHGBa6UZtZxUD" />
+  <component name="ProjectId" id="1c2MwRZTAorAoe5cUM8BVdjv7Rw" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -76,12 +66,6 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="cf.first.check.clang-format" value="false" />
-    <property name="settings.editor.selected.configurable" value="preferences.editor" />
-  </component>
-  <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/src/starpu" />
-    </key>
   </component>
   <component name="RunManager" selected="CMake Application.swe-starpu">
     <configuration name="swe-mpi" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-mpi" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-mpi">
@@ -89,12 +73,12 @@
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="swe-single-node" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 1024 -y 1024 -o testout" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-single-node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-single-node">
+    <configuration name="swe-single-node" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 1000 -y 1000 -o testoutput" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-single-node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-single-node">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="swe-starpu" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 1000 -y 1000 -o testout" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-starpu" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-starpu">
+    <configuration name="swe-starpu" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-x 1000 -y 1000 -o testoutput" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SWE" TARGET_NAME="swe-starpu" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SWE" RUN_TARGET_NAME="swe-starpu">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
@@ -116,23 +100,12 @@
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="302f8276-0cd4-42b5-80a4-a025a2af356c" name="Default Changelist" comment="" />
-      <created>1588509499740</created>
+      <changelist id="129ad1ea-2011-4276-ba9c-f4d913fc0ea0" name="Default Changelist" comment="" />
+      <created>1589722472421</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1588509499740</updated>
-      <workItem from="1588509502869" duration="2022000" />
-      <workItem from="1588597588815" duration="1112000" />
-      <workItem from="1588694768933" duration="6891000" />
-      <workItem from="1589032835967" duration="7498000" />
-      <workItem from="1589102528308" duration="3089000" />
-      <workItem from="1589202076387" duration="13754000" />
-      <workItem from="1589281845843" duration="13442000" />
-      <workItem from="1589299471322" duration="5895000" />
-      <workItem from="1589370752096" duration="16028000" />
-      <workItem from="1589471982094" duration="1894000" />
-      <workItem from="1589552523060" duration="6018000" />
-      <workItem from="1589636866189" duration="2150000" />
+      <updated>1589722472421</updated>
+      <workItem from="1589722477688" duration="12030000" />
     </task>
     <servers />
   </component>
@@ -149,100 +122,70 @@
         </entry>
       </map>
     </option>
-    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1589559402492">
+    <state x="418" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1589723571823">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="424" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589559402492" />
-    <state x="656" y="232" key="#swe" timestamp="1589213817588">
+    <state x="418" y="178" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589723571823" />
+    <state x="723" y="265" key="#xdebugger.evaluate" timestamp="1589733979800">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="656" y="232" key="#swe/0.0.1920.1040@0.0.1920.1040" timestamp="1589213817588" />
-    <state x="1246" y="340" key="#xdebugger.evaluate" timestamp="1589554623257">
+    <state x="723" y="265" key="#xdebugger.evaluate/0.0.1920.1040@0.0.1920.1040" timestamp="1589733979800" />
+    <state width="435" height="506" key="DebuggerActiveHint" timestamp="1589733946820">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="1246" y="340" key="#xdebugger.evaluate/0.0.1920.1040@0.0.1920.1040" timestamp="1589554623257" />
-    <state width="584" height="506" key="DebuggerActiveHint" timestamp="1589553804837">
+    <state width="435" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1589733946820" />
+    <state width="1874" height="369" key="GridCell.Tab.0.bottom" timestamp="1589734502004">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="584" height="506" key="DebuggerActiveHint/0.0.1920.1040@0.0.1920.1040" timestamp="1589553804837" />
-    <state width="1874" height="262" key="GridCell.Tab.0.bottom" timestamp="1589559189964">
+    <state width="1874" height="369" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
+    <state width="1874" height="369" key="GridCell.Tab.0.center" timestamp="1589734502004">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189964" />
-    <state width="1874" height="262" key="GridCell.Tab.0.center" timestamp="1589559189951">
+    <state width="1874" height="369" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
+    <state width="1874" height="369" key="GridCell.Tab.0.left" timestamp="1589734502004">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189951" />
-    <state width="1874" height="262" key="GridCell.Tab.0.left" timestamp="1589559189929">
+    <state width="1874" height="369" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
+    <state width="1874" height="369" key="GridCell.Tab.0.right" timestamp="1589734502004">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189929" />
-    <state width="1874" height="262" key="GridCell.Tab.0.right" timestamp="1589559189963">
+    <state width="1874" height="369" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
+    <state width="1874" height="369" key="GridCell.Tab.1.bottom" timestamp="1589734502005">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189963" />
-    <state width="1874" height="262" key="GridCell.Tab.1.bottom" timestamp="1589559189850">
+    <state width="1874" height="369" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
+    <state width="1874" height="369" key="GridCell.Tab.1.center" timestamp="1589734502005">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189850" />
-    <state width="1874" height="262" key="GridCell.Tab.1.center" timestamp="1589559189849">
+    <state width="1874" height="369" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
+    <state width="1874" height="369" key="GridCell.Tab.1.left" timestamp="1589734502004">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189849" />
-    <state width="1874" height="262" key="GridCell.Tab.1.left" timestamp="1589559189849">
+    <state width="1874" height="369" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502004" />
+    <state width="1874" height="369" key="GridCell.Tab.1.right" timestamp="1589734502005">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189849" />
-    <state width="1874" height="262" key="GridCell.Tab.1.right" timestamp="1589559189849">
+    <state width="1874" height="369" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589734502005" />
+    <state x="664" y="259" width="592" height="522" key="find.popup" timestamp="1589728011792">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1874" height="262" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1589559189849" />
-    <state x="461" y="155" key="SettingsEditor" timestamp="1589378716857">
+    <state x="664" y="259" width="592" height="522" key="find.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589728011792" />
+    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup" timestamp="1589734435078">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="461" y="155" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1589378716857" />
-    <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1588701283760">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="572" y="134" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1920.1040@0.0.1920.1040" timestamp="1588701283760" />
-    <state x="758" y="435" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1589294731017">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="758" y="435" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1920.1040@0.0.1920.1040" timestamp="1589294731017" />
-    <state x="664" y="128" width="1113" height="783" key="find.popup" timestamp="1589376177010">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="664" y="128" width="1113" height="783" key="find.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589376177010" />
-    <state x="744" y="306" key="refactoring.ChangeSignatureDialog" timestamp="1589285208921">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="744" y="306" key="refactoring.ChangeSignatureDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1589285208921" />
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup" timestamp="1589646970677">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="0" y="0" width="672" height="160" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589646970677" />
-    <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog" timestamp="1588695013534">
-      <screen x="0" y="0" width="1920" height="1040" />
-    </state>
-    <state x="690" y="434" key="vcs.readOnlyHandler.ReadOnlyStatusDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1588695013534" />
+    <state x="623" y="229" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1589734435078" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/src/examples/swe_mpi.cpp</url>
-          <line>468</line>
-          <option name="timeStamp" value="6" />
+          <url>file://$PROJECT_DIR$/src/writer/StarPUBlockWriter.h</url>
+          <line>91</line>
+          <option name="timeStamp" value="5" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
-    <watches-manager>
-      <configuration name="CMakeRunConfiguration">
-        <watch expression="cl_arg" />
-      </configuration>
-    </watches-manager>
   </component>
 </project>

@@ -1,7 +1,7 @@
 
 #include "codelets.h"
 #include "SWE_StarPU_Block.h"
-#include "writer/Writer.hh"
+#include "writer/StarPUBlockWriter.h"
 
 void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *thisBlock;
@@ -120,13 +120,14 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
 }();
 
 void writeResult_cpu(void *buffers[], void *cl_arg) {
-    io::Writer* writer;
+    io::StarPUBlockWriter* writer;
     float timestamp;
     starpu_codelet_unpack_args(cl_arg,&writer,&timestamp);
 
     const auto  huvMatrix = reinterpret_cast<SWE_HUV_Matrix_interface *>(buffers[0]);
+    const auto  bMatrix = reinterpret_cast<starpu_matrix_interface *>(buffers[1]);
 
-    writer->writeTimeStep(*huvMatrix,timestamp);
+    writer->writeTimeStep(*huvMatrix,*bMatrix,timestamp);
     
 }
 
@@ -134,8 +135,9 @@ starpu_codelet SWECodelets::resultWriter = []()noexcept{
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &writeResult_cpu;
-    codelet.nbuffers = 1;
+    codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_R;
+    codelet.modes[1] = STARPU_R;
     return codelet;
 }();
 

@@ -37,7 +37,7 @@ find_package(PkgConfig)
 
 
 add_executable(swe-single-node)
-add_library(swe)
+add_library(swe src/writer/StarPUBlockWriter.h)
 
 if(SOLVER STREQUAL "augRie")
     target_compile_definitions(swe PUBLIC SOLVER_AUGRIE)
