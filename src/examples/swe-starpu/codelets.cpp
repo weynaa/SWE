@@ -143,7 +143,6 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
         }
         writer->writeTimeStep(*huvMatrix, *bMatrix, *currentTimestamp);
     }
-
 }
 
 starpu_codelet SWECodelets::resultWriter = []()noexcept {
@@ -295,7 +294,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
 
 void variableMin_cpu(void *buffers[], void *cl_args) {
     float *a = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
-    float *b = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
+    float *b = (float *) STARPU_VARIABLE_GET_PTR(buffers[1]);
     *a = std::min(*a, *b);
 }
 
@@ -312,7 +311,7 @@ starpu_codelet SWECodelets::variableMin = []()noexcept {
 
 void variableSetInf_cpu(void *buffers[], void *cl_args) {
     float *value = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
-    *value = std::numeric_limits<float>::max();
+    *value = std::numeric_limits<float>::infinity();
 }
 
 starpu_codelet SWECodelets::variableSetInf = []()noexcept {
@@ -343,8 +342,8 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
             STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock,x,y) -=*dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates,x,y);
 
             STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates,x,y) = 0;
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates,x,y) = 0;
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates,x,y) = 0;
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates,x,y) = 0;
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates,x,y) = 0;
 
         }
     }

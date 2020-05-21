@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
                        STARPU_R, spu_timestamp,
                        STARPU_RW, spu_nextTimestampToWrite,
                        0);
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100; ++i) {
         auto side = BND_LEFT;
         auto blockptr = &l_block;
         starpu_iteration_push(i);

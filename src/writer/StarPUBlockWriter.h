@@ -92,7 +92,7 @@ namespace io {
         void writeTimeStep(SWE_HUV_Matrix_interface &huvData, starpu_matrix_interface &b, float time) {
             if (timeStep == 0)
                 // Write bathymetry
-                writeVarTimeIndependent(b, bVar);
+                writeVarTimeIndependent(b, bVar,1,1);
 
             //write i_time
             nc_put_var1_float(dataFile, timeVar, &timeStep, &time);
@@ -115,16 +115,17 @@ namespace io {
 
     private:
         void writeVarTimeIndependent(starpu_matrix_interface &i_matrix,
-                                     int i_ncVariable) const {
+                                     int i_ncVariable,
+                                     const size_t xOffsset, const size_t yOffset) const {
             //write col wise, necessary to get rid of the boundary
             //storage in Float2D is col wise
             //read carefully, the dimensions are confusing
             size_t start[] = {0, 0};
-            size_t count[] = {1, i_matrix.nx};
-            for (unsigned int row = 0; row < i_matrix.ny; row++) {
+            size_t count[] = {1, nX};
+            for (unsigned int row = 0; row < nY; row++) {
                 start[0] = row; //select row (dim "y")
                 nc_put_vara_float(dataFile, i_ncVariable, start, count,
-                                  &(((float_type *) i_matrix.ptr)[row * i_matrix.ld])); //write row
+                                  &(((float_type *) i_matrix.ptr)[(row+yOffset) * i_matrix.ld+xOffsset])); //write row
             }
         }
 
