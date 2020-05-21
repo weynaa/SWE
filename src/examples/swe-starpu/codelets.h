@@ -21,5 +21,16 @@ struct SWECodelets{
      * Codelet which writes the result
      */
     static starpu_codelet resultWriter;
+
+    static starpu_codelet variableSetInf;
+    static starpu_codelet variableMin;
+    /**
+     *
+     */
+    static starpu_codelet computeNumericalFluxes;
+
+    static starpu_codelet updateUnknowns;
+
+    static starpu_codelet incrementTime;
 };
 #endif //SWE_CODELETS_H

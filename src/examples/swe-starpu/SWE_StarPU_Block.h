@@ -68,6 +68,12 @@ struct SWE_StarPU_HUV_Allocation {
         rval._h = rval._hu = rval._hv = nullptr;
         return *this;
     }
+    //Zeroes all buffers
+    void clearData(){
+        memset(_h,0,nX*nY*sizeof(float_type));
+        memset(_hu,0,nX*nY*sizeof(float_type));
+        memset(_hv,0,nX*nY*sizeof(float_type));
+    }
 
     explicit operator bool() const {
         return nX == 0 || nY == 0 || _h == nullptr || _hu == nullptr || _hv == nullptr;
@@ -155,6 +161,9 @@ public:
     /// returns #ny, i.e. the grid size in y-direction
     int getNy() const noexcept { return ny; }
 
+    float getDx() const noexcept {return dx;}
+
+    float getDy() const noexcept {return dy;}
 
     // Konstanten:
     /// static variable that holds the gravity constant (g = 9.81 m/s^2):
