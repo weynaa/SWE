@@ -120,7 +120,7 @@ endif()
 
 if (OpenMP_FOUND AND ENABLE_OPENMP)
     target_compile_definitions(swe PUBLIC LOOP_OPENMP)
-    target_link_libraries(swe PRIVATE OpenMP::OpenMP_CXX)
+    target_link_libraries(swe PUBLIC OpenMP::OpenMP_CXX)
     message(STATUS "OpenMP supported loop parallelization is enabled.")
 else()
     message(STATUS "OpenMP loop parallelization is disabled.")
@@ -129,15 +129,15 @@ endif()
 if (OpenMP_FOUND AND ENABLE_VECTORIZATION)
     #target_compile_definitions(swe PUBLIC $<$<CONFIG:Release>:VECTORIZE NDEBUG>)
     target_compile_definitions(swe PUBLIC VECTORIZE NDEBUG)
-    target_link_libraries(swe PRIVATE OpenMP::OpenMP_CXX)
-    target_compile_options(swe PRIVATE 
+    target_link_libraries(swe PUBLIC OpenMP::OpenMP_CXX)
+    target_compile_options(swe PUBLIC
         $<$<CXX_COMPILER_ID:Clang>: -march=native -fno-math-errno>
         $<$<CXX_COMPILER_ID:AppleClang>: -march=native -fno-math-errno>
         $<$<CXX_COMPILER_ID:Intel>: -xHost>
         $<$<CXX_COMPILER_ID:GNU>: >
     )
     if(ENABLE_VECTORIZATION_VERBOSE)
-        target_compile_options(swe PRIVATE
+        target_compile_options(swe PUBLIC
             $<$<CXX_COMPILER_ID:AppleClang>: -Rpass-analysis=loop-vectorize>
             $<$<CXX_COMPILER_ID:Clang>: -Rpass-analysis=loop-vectorize>
             $<$<CXX_COMPILER_ID:Intel>: -qopt-report-phase=vec -qopt-report=2>

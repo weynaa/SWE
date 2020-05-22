@@ -131,8 +131,7 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
     const auto currentTimestamp = (float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
     const auto nextTimestampToWrite = (float *) STARPU_VARIABLE_GET_PTR(buffers[3]);
 
-    if (*nextTimestampToWrite <= *currentTimestamp)
-    {
+    if (*nextTimestampToWrite <= *currentTimestamp) {
         auto findNext = std::find_if(checkpoints->begin(), checkpoints->end(),
                                      [&](const float test) -> bool {
                                          return test > *nextTimestampToWrite;
@@ -143,7 +142,7 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
             *nextTimestampToWrite = std::numeric_limits<float>::infinity();
         }
         writer->writeTimeStep(*huvMatrix, *bMatrix, *currentTimestamp);
-        printf("writing time step %f\n",*currentTimestamp);
+        printf("writing time step %f\n", *currentTimestamp);
     }
 }
 
@@ -189,23 +188,68 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     memset(STARPU_SWE_HUV_MATRIX_GET_H_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
+    #pragma omp simd
+    for (size_t y = 0; y < nY; ++y) {
+        float_type maxEdgeSpeed;
+        float_type hNetUpLeft, hNetUpRight;
+        float_type huNetUpLeft, huNetUpRight;
+
+        float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(leftGhost, 0, y);
+        float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, 0, y);
+        float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(leftGhost, 0, y);
+        float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, 0, y);
+        float_type bLeft = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b)];
+        float_type bRight = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + 1];
+        waveSolver.computeNetUpdates(hLeft, hRight,
+                                     huLeft, huRight,
+                                     bLeft, bRight,
+                                     hNetUpLeft, hNetUpRight,
+                                     huNetUpLeft, huNetUpRight,
+                                     maxEdgeSpeed);
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, 0, y) += dx_inv * hNetUpRight;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, 0, y) += dx_inv * huNetUpRight;
+
+        l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
+    }
+    #pragma omp simd
+    for (size_t y = 0; y < nY; ++y) {
+        float_type maxEdgeSpeed;
+        float_type hNetUpLeft, hNetUpRight;
+        float_type huNetUpLeft, huNetUpRight;
+
+        float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, nX - 1, y);
+        float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(rightGhost, 0, y);
+        float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, nX - 1, y);
+        float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(rightGhost, 0, y);
+        float_type bLeft = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + nX];
+        float_type bRight = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + nX + 1];
+        waveSolver.computeNetUpdates(hLeft, hRight,
+                                     huLeft, huRight,
+                                     bLeft, bRight,
+                                     hNetUpLeft, hNetUpRight,
+                                     huNetUpLeft, huNetUpRight,
+                                     maxEdgeSpeed);
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, nX - 1, y) += dx_inv * hNetUpLeft;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, nX - 1, y) += dx_inv * huNetUpLeft;
+
+        l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
+    }
 
     for (size_t y = 0; y < nY; ++y) {
-        for (size_t x = 1; x < nX + 2; ++x) {
-
-            const auto leftX = x == 1 ? 0 : x - 2;
-            const auto rightX = x == nX + 1 ? 0 : x - 1;
-            const auto leftblock = x == 1 ? leftGhost : mainBlock;
-            const auto rightBlock = x == nX + 1 ? rightGhost : mainBlock;
-
+        #pragma omp simd
+        for (size_t x = 1; x < nX; ++x) {
             float_type maxEdgeSpeed;
             float_type hNetUpLeft, hNetUpRight;
             float_type huNetUpLeft, huNetUpRight;
 
-            float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(leftblock, leftX, y);
-            float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(rightBlock, rightX, y);
-            float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(leftblock, leftX, y);
-            float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(rightBlock, rightX, y);
+            float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x - 1, y);
+            float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y);
+            float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, x - 1, y);
+            float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, x, y);
             float_type bLeft = ((float_type *)
                     STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x)];
             float_type bRight = ((float_type *)
@@ -216,34 +260,80 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                          hNetUpLeft, hNetUpRight,
                                          huNetUpLeft, huNetUpRight,
                                          maxEdgeSpeed);
-            if (x != 1) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, leftX, y) += dx_inv * hNetUpLeft;
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, leftX, y) += dx_inv * huNetUpLeft;
-            }
-            if (x != nX + 1) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, rightX, y) += dx_inv * hNetUpRight;
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, rightX, y) += dx_inv * huNetUpRight;
-            }
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x-1, y) += dx_inv * hNetUpLeft;
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, x-1, y) += dx_inv * huNetUpLeft;
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y) += dx_inv * hNetUpRight;
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, x, y) += dx_inv * huNetUpRight;
+
             l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
         }
     }
-    for (size_t y = 1; y < nY + 1; ++y) {
+    #pragma omp simd
+    for (size_t x = 0; x < nX; ++x) {
+        float_type maxEdgeSpeed;
+        float_type hNetUpUpper, hNetUpLower;
+        float_type hvNetUpUpper, hvNetUpLower;
+
+        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(topGhost, x+1, 0);
+        float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, 0);
+        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(topGhost, x+1, 0);
+        float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, 0);
+
+        float_type bUpper = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(0) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
+        float_type bLower = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(0 + 1) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
+        waveSolver.computeNetUpdates(hUpper, hLower,
+                                     hvUpper, hvLower,
+                                     bUpper, bLower,
+                                     hNetUpUpper, hNetUpLower,
+                                     hvNetUpUpper, hvNetUpLower,
+                                     maxEdgeSpeed);
+
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, 0) += dy_inv * hNetUpLower;
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, 0) += dy_inv * hvNetUpLower;
+
+        l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
+    }
+    #pragma omp simd
+    for (size_t x = 0; x < nX; ++x) {
+        float_type maxEdgeSpeed;
+        float_type hNetUpUpper, hNetUpLower;
+        float_type hvNetUpUpper, hvNetUpLower;
+
+        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, nY-1);
+        float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(bottomGhost, x+1, 0);
+        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, nY-1);
+        float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(bottomGhost, x+1, 0);
+
+        float_type bUpper = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(nY) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
+        float_type bLower = ((float_type *)
+                STARPU_MATRIX_GET_PTR(b))[(nY + 1) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
+        waveSolver.computeNetUpdates(hUpper, hLower,
+                                     hvUpper, hvLower,
+                                     bUpper, bLower,
+                                     hNetUpUpper, hNetUpLower,
+                                     hvNetUpUpper, hvNetUpLower,
+                                     maxEdgeSpeed);
+
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, nY-1) += dy_inv * hNetUpUpper;
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, nY-1) += dy_inv * hvNetUpUpper;
+
+        l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
+    }
+    for (size_t y = 1; y < nY; ++y) {
+        #pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
-
-            const auto lowerY = y == 1 ? 0 : y - 2;
-            const auto upperY = y == nY + 1 ? 0 : y - 1;
-            const auto xOfs = (y == 1 || y == nY + 1) ? x + 1 : x;
-            const auto uppperBlock = y == 0 ? topGhost : mainBlock;
-            const auto lowerBlock = y == nY + 1 ? bottomGhost : mainBlock;
-
             float_type maxEdgeSpeed;
             float_type hNetUpUpper, hNetUpLower;
             float_type hvNetUpUpper, hvNetUpLower;
 
-            float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(uppperBlock, xOfs, upperY);
-            float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(lowerBlock, xOfs, lowerY);
-            float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, xOfs, upperY);
-            float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, xOfs, lowerY);
+            float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y-1);
+            float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y);
+            float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, y-1);
+            float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, y);
 
             float_type bUpper = ((float_type *)
                     STARPU_MATRIX_GET_PTR(b))[(y) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
@@ -255,14 +345,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                          hNetUpUpper, hNetUpLower,
                                          hvNetUpUpper, hvNetUpLower,
                                          maxEdgeSpeed);
-            if (y != 1) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, xOfs, upperY) += dy_inv * hNetUpUpper;
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, xOfs, upperY) += dy_inv * hvNetUpUpper;
-            }
-            if (y != nY + 1) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, xOfs, lowerY) += dy_inv * hNetUpLower;
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, xOfs, lowerY) += dy_inv * hvNetUpLower;
-            }
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y-1) += dy_inv * hNetUpUpper;
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, y-1) += dy_inv * hvNetUpUpper;
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y) += dy_inv * hNetUpLower;
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, y) += dy_inv * hvNetUpLower;
 
             l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
         }
@@ -343,6 +430,7 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
     const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(myBlock);
 
     for (size_t y = 0; y < nY; ++y) {
+        #pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
             STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates, x, y);
             STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
