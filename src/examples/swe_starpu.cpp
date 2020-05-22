@@ -137,7 +137,8 @@ int main(int argc, char **argv) {
             l_fileName,
             l_nX, l_nY,
             l_dX, l_dY,
-            0, 0
+            0, 0,
+            0
     );
 
     float *timestamp;

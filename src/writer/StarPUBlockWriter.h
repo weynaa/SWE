@@ -25,10 +25,10 @@ namespace io {
         StarPUBlockWriter(const std::string &_fileName,
                           size_t _nX, size_t _nY,
                           float _dX, float _dY,
-                          float _originX, float _originY) :
+                          float _originX, float _originY, unsigned int _flush) :
                 fileName(_fileName + ".nc"),
                 originX(_originX), originY(_originY),
-                dX(_dX), dY(_dY), nX(_nX), nY(_nY) {
+                dX(_dX), dY(_dY), nX(_nX), nY(_nY), flush(_flush) {
             int status;
 
             //create a netCDF-file, an existing file will be replaced
@@ -130,15 +130,15 @@ namespace io {
         }
 
         template<typename T>
-        void writeVarTimeDependent(const T *data, const size_t nX, const size_t ld,
-                                   const size_t nY,
+        void writeVarTimeDependent(const T *data, const size_t _nX, const size_t ld,
+                                   const size_t _nY,
                                    int i_ncVariable) const {
             //write col wise, necessary to get rid of the boundary
             //storage in Float2D is col wise
             //read carefully, the dimensions are confusing
             size_t start[] = {timeStep, 0, 0};
-            size_t count[] = {1, 1, nX};
-            for (unsigned int row = 0; row < nY; row++) {
+            size_t count[] = {1, 1, _nX};
+            for (unsigned int row = 0; row < _nY; row++) {
                 start[1] = row; //select row (dim "x")
                 nc_put_vara_float(dataFile, i_ncVariable, start, count,
                                   &data[row * ld]); //write row

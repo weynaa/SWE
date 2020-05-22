@@ -129,9 +129,10 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
     const auto huvMatrix = reinterpret_cast<SWE_HUV_Matrix_interface *>(buffers[0]);
     const auto bMatrix = reinterpret_cast<starpu_matrix_interface *>(buffers[1]);
     const auto currentTimestamp = (float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
-    const auto nextTimestampToWrite = (float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
+    const auto nextTimestampToWrite = (float *) STARPU_VARIABLE_GET_PTR(buffers[3]);
 
-    if (nextTimestampToWrite <= currentTimestamp) {
+    if (*nextTimestampToWrite <= *currentTimestamp)
+    {
         auto findNext = std::find_if(checkpoints->begin(), checkpoints->end(),
                                      [&](const float test) -> bool {
                                          return test > *nextTimestampToWrite;
@@ -142,6 +143,7 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
             *nextTimestampToWrite = std::numeric_limits<float>::infinity();
         }
         writer->writeTimeStep(*huvMatrix, *bMatrix, *currentTimestamp);
+        printf("writing time step %f\n",*currentTimestamp);
     }
 }
 
