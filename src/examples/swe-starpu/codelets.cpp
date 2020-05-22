@@ -184,13 +184,17 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     const auto nX = STARPU_SWE_HUV_MATRIX_GET_NX(mainBlock);
     const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(mainBlock);
 
+    memset(STARPU_SWE_HUV_MATRIX_GET_H_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
+    memset(STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
+    memset(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
+
     for (size_t y = 0; y < nY; ++y) {
         for (size_t x = 1; x < nX + 2; ++x) {
 
             const auto leftX = x == 1 ? 0 : x - 2;
             const auto rightX = x == nX + 1 ? 0 : x - 1;
-            auto &leftblock = x == 1 ? leftGhost : mainBlock;
-            auto &rightBlock = x == nX + 1 ? rightGhost : mainBlock;
+            const auto leftblock = x == 1 ? leftGhost : mainBlock;
+            const auto rightBlock = x == nX + 1 ? rightGhost : mainBlock;
 
             float_type maxEdgeSpeed;
             float_type hNetUpLeft, hNetUpRight;
@@ -203,7 +207,7 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
             float_type bLeft = ((float_type *)
                     STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x)];
             float_type bRight = ((float_type *)
-                    STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x+1)];
+                    STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
             waveSolver.computeNetUpdates(hLeft, hRight,
                                          huLeft, huRight,
                                          bLeft, bRight,
@@ -238,10 +242,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
             float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(lowerBlock, xOfs, lowerY);
             float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, xOfs, upperY);
             float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, xOfs, lowerY);
+
             float_type bUpper = ((float_type *)
-                    STARPU_MATRIX_GET_PTR(b))[(y) * STARPU_MATRIX_GET_LD(b) + (x+1)];
+                    STARPU_MATRIX_GET_PTR(b))[(y) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
             float_type bLower = ((float_type *)
-                    STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x+1)];
+                    STARPU_MATRIX_GET_PTR(b))[(y + 1) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
             waveSolver.computeNetUpdates(hUpper, hLower,
                                          hvUpper, hvLower,
                                          bUpper, bLower,
@@ -253,8 +258,8 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                 STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, xOfs, upperY) += dy_inv * hvNetUpUpper;
             }
             if (y != nY + 1) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, xOfs, upperY) += dy_inv * hNetUpLower;
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, xOfs, upperY) += dy_inv * hvNetUpLower;
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, xOfs, lowerY) += dy_inv * hNetUpLower;
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, xOfs, lowerY) += dy_inv * hvNetUpLower;
             }
 
             l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
@@ -330,24 +335,25 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
 
     const auto myBlock = buffers[0];
     const auto updates = buffers[1];
-    const auto dt = (const float*) STARPU_VARIABLE_GET_PTR(buffers[2]);
+    const auto dt = (const float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
 
     const auto nX = STARPU_SWE_HUV_MATRIX_GET_NX(myBlock);
     const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(myBlock);
 
     for (size_t y = 0; y < nY; ++y) {
         for (size_t x = 0; x < nX; ++x) {
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock,x,y) -=*dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates,x,y);
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock,x,y) -=*dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates,x,y);
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock,x,y) -=*dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates,x,y);
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates, x, y);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates, x, y);
 
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates,x,y) = 0;
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates,x,y) = 0;
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates,x,y) = 0;
+            if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) < 0.1) {
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) = 0;
+            }
 
         }
     }
-
 }
 
 starpu_codelet SWECodelets::updateUnknowns = []() {

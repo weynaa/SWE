@@ -157,7 +157,6 @@ int main(int argc, char **argv) {
     const auto pCheckpoints = &l_checkPoints;
 
     SWE_StarPU_HUV_Allocation updateScratchData(l_nX, l_nY);
-    updateScratchData.clearData();
     updateScratchData.register_starpu();
 
     float maxTimestep = std::numeric_limits<float>::max();
@@ -174,7 +173,7 @@ int main(int argc, char **argv) {
                        STARPU_R, spu_timestamp,
                        STARPU_RW, spu_nextTimestampToWrite,
                        0);
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 50; ++i) {
         auto side = BND_LEFT;
         auto blockptr = &l_block;
         starpu_iteration_push(i);
