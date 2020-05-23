@@ -54,7 +54,11 @@
 
 
 #include "swe-starpu/SWE_StarPU_Block.h"
-#include "swe-starpu/codelets.h"
+#include "swe-starpu/SWE_StarPU_Sim.h"
+
+
+static constexpr size_t blocksX = 4;
+static constexpr size_t blocksY = 4;
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
@@ -125,129 +129,17 @@ int main(int argc, char **argv) {
     auto l_originX = l_scenario.getBoundaryPos(BND_LEFT);
     auto l_originY = l_scenario.getBoundaryPos(BND_BOTTOM);
 
-    SWE_StarPU_Block l_block(l_nX, l_nY, l_dX, l_dY);
-
-
-    auto l_fileName = generateBaseFileName(l_baseName, 0, 0);
-
-
-    l_block.initScenario(0, 0, l_scenario);
-    l_block.register_starpu();
-    auto l_writer = std::make_shared<io::StarPUBlockWriter>(
-            l_fileName,
-            l_nX, l_nY,
-            l_dX, l_dY,
-            0, 0,
-            0
-    );
-
-    float *timestamp;
-    starpu_malloc((void **) &timestamp, sizeof(float));
-    *timestamp = 0;
-    starpu_data_handle_t spu_timestamp;
-    starpu_variable_data_register(&spu_timestamp, STARPU_MAIN_RAM, (uintptr_t) timestamp, sizeof(float));
-
-    float *nextTimestampToWrite;
-    starpu_malloc((void **) &nextTimestampToWrite, sizeof(float));
-    *nextTimestampToWrite = 0;
-    starpu_data_handle_t spu_nextTimestampToWrite;
-    starpu_variable_data_register(&spu_nextTimestampToWrite, STARPU_MAIN_RAM, (uintptr_t) nextTimestampToWrite,
-                                  sizeof(float));
-
-    const auto writerPtr = l_writer.get();
-    const auto pCheckpoints = &l_checkPoints;
-
-    SWE_StarPU_HUV_Allocation updateScratchData(l_nX, l_nY);
-    updateScratchData.register_starpu();
-
-    float maxTimestep = std::numeric_limits<float>::max();
-    starpu_data_handle_t spu_maxTimestep;
-    starpu_variable_data_register(&spu_maxTimestep, STARPU_MAIN_RAM, (uintptr_t) &maxTimestep, sizeof(maxTimestep));
-    starpu_data_set_reduction_methods(spu_maxTimestep, &SWECodelets::variableMin, &SWECodelets::variableSetInf);
-
-
-    starpu_task_insert(&SWECodelets::resultWriter,
-                       STARPU_VALUE, &writerPtr, sizeof(writerPtr),
-                       STARPU_VALUE, &pCheckpoints, sizeof(pCheckpoints),
-                       STARPU_R, l_block.huvData().starpuHandle(),
-                       STARPU_R, l_block.bStarpuHandle(),
-                       STARPU_R, spu_timestamp,
-                       STARPU_RW, spu_nextTimestampToWrite,
-                       0);
-    for (int i = 0; i < 500; ++i) {
-        auto side = BND_LEFT;
-        auto blockptr = &l_block;
-        starpu_iteration_push(i);
-        starpu_task_insert(&SWECodelets::updateGhostLayers,
-                           STARPU_VALUE, &side, sizeof(side),
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_W, l_block.boundaryData[side].starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           0);
-        side = BND_RIGHT;
-        starpu_task_insert(&SWECodelets::updateGhostLayers,
-                           STARPU_VALUE, &side, sizeof(side),
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_W, l_block.boundaryData[side].starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           0);
-        side = BND_BOTTOM;
-        starpu_task_insert(&SWECodelets::updateGhostLayers,
-                           STARPU_VALUE, &side, sizeof(side),
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_W, l_block.boundaryData[side].starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           0);
-        side = BND_TOP;
-        starpu_task_insert(&SWECodelets::updateGhostLayers,
-                           STARPU_VALUE, &side, sizeof(side),
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_W, l_block.boundaryData[side].starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           0);
-
-
-        starpu_task_insert(&SWECodelets::computeNumericalFluxes,
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.boundaryData[BND_LEFT].starpuHandle(),
-                           STARPU_R, l_block.boundaryData[BND_RIGHT].starpuHandle(),
-                           STARPU_R, l_block.boundaryData[BND_BOTTOM].starpuHandle(),
-                           STARPU_R, l_block.boundaryData[BND_TOP].starpuHandle(),
-                           STARPU_R, l_block.bStarpuHandle(),
-                           STARPU_W, updateScratchData.starpuHandle(),
-                           STARPU_REDUX, spu_maxTimestep,
-                           0);
-        starpu_task_insert(&SWECodelets::updateUnknowns,
-                           STARPU_VALUE, &blockptr, sizeof(blockptr),
-                           STARPU_RW, l_block.huvData().starpuHandle(),
-                           STARPU_R, updateScratchData.starpuHandle(),
-                           STARPU_R, spu_maxTimestep,
-                           0);
-        starpu_task_insert(&SWECodelets::incrementTime,
-                           STARPU_RW, spu_timestamp,
-                           STARPU_R, spu_maxTimestep,
-                           0);
-        starpu_task_insert(&SWECodelets::resultWriter,
-                           STARPU_VALUE, &writerPtr, sizeof(writerPtr),
-                           STARPU_VALUE, &pCheckpoints, sizeof(pCheckpoints),
-                           STARPU_R, l_block.huvData().starpuHandle(),
-                           STARPU_R, l_block.bStarpuHandle(),
-                           STARPU_R, spu_timestamp,
-                           STARPU_RW, spu_nextTimestampToWrite,
-                           0);
-        starpu_iteration_pop();
+    {
+        SWE_StarPU_Sim sim{
+                (size_t) l_nX, (size_t) l_nY,
+                blocksX, blocksY,
+                l_dX, l_dY,
+                l_baseName,
+                l_scenario
+        };
+        sim.launchTaskGraph();
+        starpu_task_wait_for_all();
     }
-    updateScratchData.unregister_starpu();
-    l_block.starpu_unregister();
-    starpu_data_unregister(spu_nextTimestampToWrite);
-    starpu_free(nextTimestampToWrite);
-    starpu_data_unregister(spu_timestamp);
-    starpu_free(timestamp);
     starpu_shutdown();
     return 0;
 }

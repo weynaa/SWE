@@ -2,6 +2,7 @@
 #include "codelets.h"
 #include "SWE_StarPU_Block.h"
 #include "writer/StarPUBlockWriter.h"
+#include "SWE_StarPU_Sim.h"
 #include <vector>
 #include <algorithm>
 #include <limits>
@@ -41,8 +42,8 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
                                                                                          myBlockData, innerX, innerY);
 
             }
-            break;
         }
+            break;
         case CONNECT:
         case PASSIVE:
             break;
@@ -51,7 +52,25 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
             break;
     }
 
+    if (thisBlock->boundary[side] == CONNECT) {
+        auto myNeighbourData = buffers[2];
+        const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
+        const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
+        for (size_t i = 0; i < (vertical ? ny : nx); ++i) {
+            const size_t boundaryX = vertical ? 0 : 1 + i;
+            const size_t boundaryY = vertical ? i : 0;
 
+            const size_t neighbourX = side == BND_LEFT ? neighbourNX - 1 : (side == BND_RIGHT ? 0 : i);
+            const size_t neigbhourY = side == BND_TOP ? neighbourNY - 1 : (side == BND_BOTTOM ? 0 : i);
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myNeighbourData, neighbourX, neigbhourY);
+        }
+    }
     //Update the corner values only the top and bottom boundary contain these
     if (side == BND_TOP) {
         STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, 0, 0) =
@@ -89,25 +108,6 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
 #endif
 
 
-    if (thisBlock->boundary[side] == CONNECT) {
-        auto myNeighbourData = buffers[2];
-        const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
-        const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
-        for (size_t i = 0; i < (vertical ? ny : nx); ++i) {
-            const size_t boundaryX = vertical ? 0 : 1 + i;
-            const size_t boundaryY = vertical ? i : 0;
-
-            const size_t neighbourX = side == BND_LEFT ? neighbourNX - 1 : (side == BND_RIGHT ? 0 : i);
-            const size_t neigbhourY = side == BND_TOP ? neighbourNY - 1 : (side == BND_BOTTOM ? 0 : i);
-
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(myNeighbourData, neighbourX, neigbhourY);
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myNeighbourData, neighbourX, neigbhourY);
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myNeighbourData, neighbourX, neigbhourY);
-        }
-    }
 }
 
 starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
@@ -123,38 +123,25 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
 
 void writeResult_cpu(void *buffers[], void *cl_arg) {
     io::StarPUBlockWriter *writer;
-    std::vector<float> *checkpoints = {};
-    starpu_codelet_unpack_args(cl_arg, &writer, &checkpoints);
+    starpu_codelet_unpack_args(cl_arg, &writer);
 
     const auto huvMatrix = reinterpret_cast<SWE_HUV_Matrix_interface *>(buffers[0]);
     const auto bMatrix = reinterpret_cast<starpu_matrix_interface *>(buffers[1]);
     const auto currentTimestamp = (float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
-    const auto nextTimestampToWrite = (float *) STARPU_VARIABLE_GET_PTR(buffers[3]);
 
-    if (*nextTimestampToWrite <= *currentTimestamp) {
-        auto findNext = std::find_if(checkpoints->begin(), checkpoints->end(),
-                                     [&](const float test) -> bool {
-                                         return test > *nextTimestampToWrite;
-                                     });
-        if (findNext != checkpoints->end()) {
-            *nextTimestampToWrite = *findNext;
-        } else {
-            *nextTimestampToWrite = std::numeric_limits<float>::infinity();
-        }
-        writer->writeTimeStep(*huvMatrix, *bMatrix, *currentTimestamp);
-        printf("writing time step %f\n", *currentTimestamp);
-    }
+    writer->writeTimeStep(*huvMatrix, *bMatrix, *currentTimestamp);
+    printf("writing time step %f\n", *currentTimestamp);
+
 }
 
 starpu_codelet SWECodelets::resultWriter = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &writeResult_cpu;
-    codelet.nbuffers = 4;
+    codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
-    codelet.modes[3] = STARPU_RW;
     return codelet;
 }();
 
@@ -164,6 +151,7 @@ starpu_codelet SWECodelets::resultWriter = []()noexcept {
 
 static solver::AugRieFun<float_type> waveSolver;
 #endif
+
 
 void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *pBlock;
@@ -188,7 +176,7 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     memset(STARPU_SWE_HUV_MATRIX_GET_H_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
-    #pragma omp simd
+#pragma omp simd
     for (size_t y = 0; y < nY; ++y) {
         float_type maxEdgeSpeed;
         float_type hNetUpLeft, hNetUpRight;
@@ -208,12 +196,12 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                      hNetUpLeft, hNetUpRight,
                                      huNetUpLeft, huNetUpRight,
                                      maxEdgeSpeed);
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, 0, y) += dx_inv * hNetUpRight;
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, 0, y) += dx_inv * huNetUpRight;
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, 0, y) += dx_inv * hNetUpRight;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, 0, y) += dx_inv * huNetUpRight;
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
-    #pragma omp simd
+#pragma omp simd
     for (size_t y = 0; y < nY; ++y) {
         float_type maxEdgeSpeed;
         float_type hNetUpLeft, hNetUpRight;
@@ -233,14 +221,14 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                      hNetUpLeft, hNetUpRight,
                                      huNetUpLeft, huNetUpRight,
                                      maxEdgeSpeed);
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, nX - 1, y) += dx_inv * hNetUpLeft;
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(mainBlock, nX - 1, y) += dx_inv * huNetUpLeft;
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, nX - 1, y) += dx_inv * hNetUpLeft;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, nX - 1, y) += dx_inv * huNetUpLeft;
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
 
     for (size_t y = 0; y < nY; ++y) {
-        #pragma omp simd
+#pragma omp simd
         for (size_t x = 1; x < nX; ++x) {
             float_type maxEdgeSpeed;
             float_type hNetUpLeft, hNetUpRight;
@@ -260,8 +248,8 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                          hNetUpLeft, hNetUpRight,
                                          huNetUpLeft, huNetUpRight,
                                          maxEdgeSpeed);
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x-1, y) += dx_inv * hNetUpLeft;
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, x-1, y) += dx_inv * huNetUpLeft;
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x - 1, y) += dx_inv * hNetUpLeft;
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, x - 1, y) += dx_inv * huNetUpLeft;
 
             STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y) += dx_inv * hNetUpRight;
             STARPU_SWE_HUV_MATRIX_GET_HU_VAL(netUpdates, x, y) += dx_inv * huNetUpRight;
@@ -269,15 +257,15 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
             l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
         }
     }
-    #pragma omp simd
+#pragma omp simd
     for (size_t x = 0; x < nX; ++x) {
         float_type maxEdgeSpeed;
         float_type hNetUpUpper, hNetUpLower;
         float_type hvNetUpUpper, hvNetUpLower;
 
-        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(topGhost, x+1, 0);
+        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(topGhost, x + 1, 0);
         float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, 0);
-        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(topGhost, x+1, 0);
+        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(topGhost, x + 1, 0);
         float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, 0);
 
         float_type bUpper = ((float_type *)
@@ -296,16 +284,16 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
-    #pragma omp simd
+#pragma omp simd
     for (size_t x = 0; x < nX; ++x) {
         float_type maxEdgeSpeed;
         float_type hNetUpUpper, hNetUpLower;
         float_type hvNetUpUpper, hvNetUpLower;
 
-        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, nY-1);
-        float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(bottomGhost, x+1, 0);
-        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, nY-1);
-        float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(bottomGhost, x+1, 0);
+        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, nY - 1);
+        float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(bottomGhost, x + 1, 0);
+        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, nY - 1);
+        float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(bottomGhost, x + 1, 0);
 
         float_type bUpper = ((float_type *)
                 STARPU_MATRIX_GET_PTR(b))[(nY) * STARPU_MATRIX_GET_LD(b) + (x + 1)];
@@ -318,21 +306,21 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                      hvNetUpUpper, hvNetUpLower,
                                      maxEdgeSpeed);
 
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, nY-1) += dy_inv * hNetUpUpper;
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, nY-1) += dy_inv * hvNetUpUpper;
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, nY - 1) += dy_inv * hNetUpUpper;
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, nY - 1) += dy_inv * hvNetUpUpper;
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
     for (size_t y = 1; y < nY; ++y) {
-        #pragma omp simd
+#pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
             float_type maxEdgeSpeed;
             float_type hNetUpUpper, hNetUpLower;
             float_type hvNetUpUpper, hvNetUpLower;
 
-            float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y-1);
+            float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y - 1);
             float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(mainBlock, x, y);
-            float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, y-1);
+            float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, y - 1);
             float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(mainBlock, x, y);
 
             float_type bUpper = ((float_type *)
@@ -346,8 +334,8 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
                                          hvNetUpUpper, hvNetUpLower,
                                          maxEdgeSpeed);
 
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y-1) += dy_inv * hNetUpUpper;
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, y-1) += dy_inv * hvNetUpUpper;
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y - 1) += dy_inv * hNetUpUpper;
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, y - 1) += dy_inv * hvNetUpUpper;
             STARPU_SWE_HUV_MATRIX_GET_H_VAL(netUpdates, x, y) += dy_inv * hNetUpLower;
             STARPU_SWE_HUV_MATRIX_GET_HV_VAL(netUpdates, x, y) += dy_inv * hvNetUpLower;
 
@@ -430,7 +418,7 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
     const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(myBlock);
 
     for (size_t y = 0; y < nY; ++y) {
-        #pragma omp simd
+#pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
             STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates, x, y);
             STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
@@ -458,10 +446,30 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
 }();
 
 void incrementTime_cpu(void *buffers[], void *cl_args) {
+
     const auto currentTime = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
     const auto timestep = (const float *) STARPU_VARIABLE_GET_PTR(buffers[1]);
-
+    const auto nextTimestampToWrite = (float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
+    SWE_StarPU_Sim *pSim;
+    std::vector<float> *checkpoints;
+    starpu_codelet_unpack_args(cl_args, &pSim, &checkpoints);
     *currentTime += *timestep;
+    if (*nextTimestampToWrite <= *currentTime) {
+        pSim->writeTimeStep();
+        auto findIt = std::find_if(checkpoints->cbegin(), checkpoints->cend(),
+                                   [&](const float test) {
+                                       return test > *currentTime;
+                                   });
+        if (findIt == checkpoints->cend()) {
+            //We are done, we are at the last time-step to write
+            return;
+        }
+        //continue
+        *nextTimestampToWrite = *findIt;
+
+    }
+    pSim->runTimestep();
+
 
 }
 
@@ -469,8 +477,9 @@ starpu_codelet SWECodelets::incrementTime = []() {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &incrementTime_cpu;
-    codelet.nbuffers = 2;
+    codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
+    codelet.modes[2] = STARPU_RW;
     return codelet;
 }();

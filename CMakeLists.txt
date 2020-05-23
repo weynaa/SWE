@@ -37,7 +37,7 @@ find_package(PkgConfig)
 
 
 add_executable(swe-single-node)
-add_library(swe src/writer/StarPUBlockWriter.h)
+add_library(swe src/writer/StarPUBlockWriter.h src/writer/StarPUBlockWriter.cpp)
 
 if(SOLVER STREQUAL "augRie")
     target_compile_definitions(swe PUBLIC SOLVER_AUGRIE)
@@ -82,7 +82,7 @@ if (STARPU_FOUND)
             src/examples/swe-starpu/SWE_StarPU_Block.cpp
             src/examples/swe-starpu/codelets.h
             src/examples/swe-starpu/codelets.cpp
-            )
+            src/examples/swe-starpu/SWE_StarPU_Sim.cpp src/examples/swe-starpu/SWE_StarPU_Sim.h)
     target_compile_definitions(swe PUBLIC ENABLE_STARPU)
     target_compile_definitions(swe-starpu PUBLIC ENABLE_STARPU)
     if(ENABLE_CUDA)

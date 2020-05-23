@@ -52,6 +52,8 @@ struct SWE_StarPU_HUV_Allocation {
         _hv = rval._hv;
         nX = rval.nX;
         nY = rval.nY;
+        _spu_huv = rval._spu_huv;
+        rval._spu_huv = nullptr;
 
         rval.nX = rval.nY = 0;
         rval._h = rval._hu = rval._hv = nullptr;
@@ -63,6 +65,8 @@ struct SWE_StarPU_HUV_Allocation {
         _hv = rval._hv;
         nX = rval.nX;
         nY = rval.nY;
+        _spu_huv = rval._spu_huv;
+        rval._spu_huv = nullptr;
 
         rval.nX = rval.nY = 0;
         rval._h = rval._hu = rval._hv = nullptr;
@@ -178,6 +182,25 @@ public:
     // Constructor und Destructor
     SWE_StarPU_Block(int l_nx, int l_ny,
                      float l_dx, float l_dy);
+    SWE_StarPU_Block(SWE_StarPU_Block && rval){
+        nx = rval.nx;
+        ny = rval.ny;
+        dx = rval.dx;
+        dy = rval.dy;
+        _b = rval._b;
+        rval._b = nullptr;
+        huv_Block = std::move(rval.huv_Block);
+        spu_b = rval.spu_b;
+        rval.spu_b= nullptr;
+        maxTimestep = rval.maxTimestep;
+        offsetX = rval.offsetX;
+        offsetY = rval.offsetY;
+        for(int i = 0; i < 4;++i){
+            boundary[i] = rval.boundary[i];
+            boundaryData[i] = std::move(rval.boundaryData[i]);
+            neighbours[i] = rval.neighbours[i];
+        }
+    }
 
     void starpu_unregister() {
         boundaryData[BND_LEFT].unregister_starpu();
@@ -234,7 +257,7 @@ protected:
 
     // define arrays for unknowns:
     // h (water level) and u,v (velocity in x and y direction)
-    float *_b;  ///< array that holds the bathymetry data (sea floor elevation) for each element
+    float *_b = nullptr;  ///< array that holds the bathymetry data (sea floor elevation) for each element
 
     SWE_StarPU_HUV_Allocation huv_Block;
     starpu_data_handle_t spu_b = nullptr;
