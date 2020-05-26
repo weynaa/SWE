@@ -57,8 +57,8 @@
 #include "swe-starpu/SWE_StarPU_Sim.h"
 
 
-static constexpr size_t blocksX = 1;
-static constexpr size_t blocksY = 2;
+static constexpr size_t blocksX = 3;
+static constexpr size_t blocksY = 3;
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
