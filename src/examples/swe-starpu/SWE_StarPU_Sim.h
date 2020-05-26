@@ -74,7 +74,7 @@ public:
             auto &scratchRow = scratchData.back();
             for (size_t y = 0; y < nBlocksY; ++y) {
                 const auto blockNx = x == nBlocksX - 1 ? nX - x * (nX / nBlocksX) : nX / nBlocksX;
-                const auto blockNy = y == nBlocksY - 1 ? nY - y * (nY / nBlocksX) : nY / nBlocksX;
+                const auto blockNy = y == nBlocksY - 1 ? nY - y * (nY / nBlocksY) : nY / nBlocksY;
                 row.emplace_back(
                         (int) blockNx,
                         (int) blockNy,
@@ -83,9 +83,9 @@ public:
                 );
 
                 const auto offsetX = (boundsWidth/nBlocksX) * x;
-                const auto offsetY = (boundsWidth/nBlocksY) * y;
+                const auto offsetY = (boundsHeight/nBlocksY) * y;
                 row.back().initScenario(offsetX, offsetY,scenario,
-                        nBlocksX != 1 || nBlocksY != 1);
+                        true);
                 row.back().register_starpu();
                 writerRow.emplace_back(
                         generateBaseFileName(filename, (int) x, (int) y),
@@ -107,17 +107,29 @@ public:
                     blocks[x][y].neighbours[BND_LEFT] = &blocks[x - 1][y];
                     blocks[x][y].boundary[BND_LEFT] = BoundaryType::CONNECT;
                 }
+                else{
+                    blocks[x][y].setBoundaryType(BND_LEFT,scenario.getBoundaryType(BND_LEFT));
+                }
                 if (x != nBlocksX - 1) {
                     blocks[x][y].neighbours[BND_RIGHT] = &blocks[x + 1][y];
                     blocks[x][y].boundary[BND_RIGHT] = BoundaryType::CONNECT;
+                }
+                else{
+                    blocks[x][y].setBoundaryType(BND_RIGHT,scenario.getBoundaryType(BND_RIGHT));
                 }
                 if (y != 0) {
                     blocks[x][y].neighbours[BND_TOP] = &blocks[x][y - 1];
                     blocks[x][y].boundary[BND_TOP] = BoundaryType::CONNECT;
                 }
+                else{
+                    blocks[x][y].setBoundaryType(BND_TOP,scenario.getBoundaryType(BND_TOP));
+                }
                 if (y != nBlocksY - 1) {
                     blocks[x][y].neighbours[BND_BOTTOM] = &blocks[x][y + 1];
                     blocks[x][y].boundary[BND_BOTTOM] = BoundaryType::CONNECT;
+                }
+                else{
+                    blocks[x][y].setBoundaryType(BND_BOTTOM,scenario.getBoundaryType(BND_BOTTOM));
                 }
             }
         }

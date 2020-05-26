@@ -5,6 +5,7 @@
 #include <writer/StarPUBlockWriter.h>
 
 
+
 io::StarPUBlockWriter::StarPUBlockWriter(const std::string &_fileName,
                   size_t _nX, size_t _nY,
                   float _dX, float _dY,
@@ -40,10 +41,10 @@ io::StarPUBlockWriter::StarPUBlockWriter(const std::string &_fileName,
 
     //variables, fastest changing index is on the right (C syntax), will be mirrored by the library
     int dims[] = {l_timeDim, l_yDim, l_xDim};
-    nc_def_var(dataFile, "h", NC_FLOAT, 3, dims, &hVar);
-    nc_def_var(dataFile, "hu", NC_FLOAT, 3, dims, &huVar);
-    nc_def_var(dataFile, "hv", NC_FLOAT, 3, dims, &hvVar);
-    nc_def_var(dataFile, "b", NC_FLOAT, 2, &dims[1], &bVar);
+    NETCDF_HANDLE_ERROR(nc_def_var(dataFile, "h", NC_FLOAT, 3, dims, &hVar));
+    NETCDF_HANDLE_ERROR(nc_def_var(dataFile, "hu", NC_FLOAT, 3, dims, &huVar));
+    NETCDF_HANDLE_ERROR(nc_def_var(dataFile, "hv", NC_FLOAT, 3, dims, &hvVar));
+    NETCDF_HANDLE_ERROR(nc_def_var(dataFile, "b", NC_FLOAT, 2, &dims[1], &bVar));
     ncPutAttText(NC_GLOBAL, "Conventions", "CF-1.5");
     ncPutAttText(NC_GLOBAL, "title", "Computed tsunami solution");
     ncPutAttText(NC_GLOBAL, "history", "SWE");
@@ -56,14 +57,14 @@ io::StarPUBlockWriter::StarPUBlockWriter(const std::string &_fileName,
     //setup grid size
     float gridPosition = originX + (float) .5 * dX;
     for (size_t i = 0; i < nX; i++) {
-        nc_put_var1_float(dataFile, l_xVar, &i, &gridPosition);
+        NETCDF_HANDLE_ERROR(nc_put_var1_float(dataFile, l_xVar, &i, &gridPosition));
 
         gridPosition += dX;
     }
 
     gridPosition = originY + (float) .5 * dY;
     for (size_t j = 0; j < nY; j++) {
-        nc_put_var1_float(dataFile, l_yVar, &j, &gridPosition);
+        NETCDF_HANDLE_ERROR(nc_put_var1_float(dataFile, l_yVar, &j, &gridPosition));
         gridPosition += dY;
     }
 }
@@ -77,9 +78,9 @@ void io::StarPUBlockWriter::writeVarTimeIndependent(starpu_matrix_interface &i_m
     size_t start[] = {0, 0};
     size_t count[] = {1, nX};
     for (unsigned int row = 0; row < nY; row++) {
-        start[0] = row; //select row (dim "y")
-        nc_put_vara_float(dataFile, i_ncVariable, start, count,
-                          &(((float_type *) i_matrix.ptr)[(row+yOffset) * i_matrix.ld+xOffsset])); //write row
+        start[0] = row; //select row (dim "y")c
+        NETCDF_HANDLE_ERROR(nc_put_vara_float(dataFile, i_ncVariable, start, count,
+                          &(((float_type *) i_matrix.ptr)[(row+yOffset) * i_matrix.ld+xOffsset]))); //write row
     }
 }
 

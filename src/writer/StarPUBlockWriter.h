@@ -6,6 +6,13 @@
 #include <netcdf.h>
 #include <starpu/SWE_HUV_Matrix.h>
 
+#ifdef NDEBUG
+#define NETCDF_HANDLE_ERROR(x) do { int status = (x); if(status!=NC_NOERR){ fprintf(stderr, "%s\n", nc_strerror(status));exit(-1);}}while(0)
+#else
+#define NETCDF_HANDLE_ERROR(x) x
+#endif
+
+
 namespace io {
     class StarPUBlockWriter {
         const std::string fileName;
@@ -14,7 +21,7 @@ namespace io {
         const float dX, dY;
 
         int timeVar, hVar, huVar, hvVar, bVar;
-        int dataFile;
+        int dataFile = 0;
 
         size_t nX, nY;
 
@@ -27,8 +34,32 @@ namespace io {
                           float _dX, float _dY,
                           float _originX, float _originY, unsigned int _flush);
 
+        StarPUBlockWriter(const StarPUBlockWriter &) = delete;
+        StarPUBlockWriter(StarPUBlockWriter && rval) noexcept :
+        fileName(rval.fileName),
+        originX(rval.originX),
+        originY(rval.originY),
+        dX(rval.dX),
+        dY(rval.dY){
+            timeStep = rval.timeStep;
+            timeVar = rval.timeVar;
+            hVar = rval.hVar;
+            huVar = rval.huVar;
+            hvVar = rval.hvVar;
+            bVar = rval.bVar;
+            dataFile = rval.dataFile;
+
+            rval.dataFile = 0;
+            nX = rval.nX;
+            nY  = rval.nY;
+            flush = rval.flush;
+        }
+
         ~StarPUBlockWriter() {
-            nc_close(dataFile);
+            if(dataFile) {
+                nc_close(dataFile);
+                dataFile = 0;
+            }
         }
 
         void writeTimeStep(SWE_HUV_Matrix_interface &huvData, starpu_matrix_interface &b, float time);
@@ -49,8 +80,8 @@ namespace io {
             size_t count[] = {1, 1, _nX};
             for (unsigned int row = 0; row < _nY; row++) {
                 start[1] = row; //select row (dim "x")
-                nc_put_vara_float(dataFile, i_ncVariable, start, count,
-                                  &data[row * ld]); //write row
+                NETCDF_HANDLE_ERROR(nc_put_vara_float(dataFile, i_ncVariable, start, count,
+                                  &data[row * ld])); //write row
             }
         }
 

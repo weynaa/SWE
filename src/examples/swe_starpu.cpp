@@ -57,8 +57,8 @@
 #include "swe-starpu/SWE_StarPU_Sim.h"
 
 
-static constexpr size_t blocksX = 4;
-static constexpr size_t blocksY = 4;
+static constexpr size_t blocksX = 1;
+static constexpr size_t blocksY = 2;
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
@@ -126,8 +126,6 @@ int main(int argc, char **argv) {
         std::cerr << "Could not initialize StarPU!\n";
         return 1;
     }
-    auto l_originX = l_scenario.getBoundaryPos(BND_LEFT);
-    auto l_originY = l_scenario.getBoundaryPos(BND_BOTTOM);
 
     {
         SWE_StarPU_Sim sim{
