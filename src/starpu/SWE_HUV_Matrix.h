@@ -13,6 +13,8 @@ struct SWE_HUV_Matrix_interface {
     float_type * hv;
     size_t nX,nY,ld; //LD==row stride in StarPU convention
 };
+
+#define STARPU_SWE_HUV_MATRIX_GET_INTERFACE(x) (*((SWE_HUV_Matrix_interface*)(x)))
 #define STARPU_SWE_HUV_MATRIX_GET_H_PTR(x) (((SWE_HUV_Matrix_interface*)(x))->h)
 #define STARPU_SWE_HUV_MATRIX_GET_HU_PTR(x) (((SWE_HUV_Matrix_interface*)(x))->hu)
 #define STARPU_SWE_HUV_MATRIX_GET_HV_PTR(x) (((SWE_HUV_Matrix_interface*)(x))->hv)

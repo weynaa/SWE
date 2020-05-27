@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <limits>
 
+#ifdef ENABLE_CUDA
+#include "codelets.cuh"
+#endif
+
+
 void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *thisBlock;
     BoundaryEdge side;
@@ -26,6 +31,9 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
         case WALL:
         case OUTFLOW: {
             const bool wall = thisBlock->boundary[side] == WALL;
+#ifdef VECTORIZE
+#pragma omp simd
+#endif
             for (size_t j = 0; j < (vertical ? ny : nx); j++) {
                 const size_t outerX = vertical ? 0 : j + 1;
                 const size_t innerX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? nx - 1 : j);
@@ -56,6 +64,9 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
         auto myNeighbourData = buffers[2];
         const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
         const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
+#ifdef VECTORIZE
+#pragma omp simd
+#endif
         for (size_t i = 0; i < (vertical ? ny : nx); ++i) {
             const size_t boundaryX = vertical ? 0 : 1 + i;
             const size_t boundaryY = vertical ? i : 0;
@@ -176,9 +187,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     memset(STARPU_SWE_HUV_MATRIX_GET_H_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
     for (size_t y = 0; y < nY; ++y) {
-        float_type maxEdgeSpeed;
+        float maxEdgeSpeed;
         float_type hNetUpLeft, hNetUpRight;
         float_type huNetUpLeft, huNetUpRight;
 
@@ -201,9 +214,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
     for (size_t y = 0; y < nY; ++y) {
-        float_type maxEdgeSpeed;
+        float maxEdgeSpeed;
         float_type hNetUpLeft, hNetUpRight;
         float_type huNetUpLeft, huNetUpRight;
 
@@ -228,9 +243,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     }
 
     for (size_t y = 0; y < nY; ++y) {
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
         for (size_t x = 1; x < nX; ++x) {
-            float_type maxEdgeSpeed;
+            float maxEdgeSpeed;
             float_type hNetUpLeft, hNetUpRight;
             float_type huNetUpLeft, huNetUpRight;
 
@@ -257,9 +274,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
             l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
         }
     }
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
     for (size_t x = 0; x < nX; ++x) {
-        float_type maxEdgeSpeed;
+        float maxEdgeSpeed;
         float_type hNetUpUpper, hNetUpLower;
         float_type hvNetUpUpper, hvNetUpLower;
 
@@ -284,9 +303,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
     for (size_t x = 0; x < nX; ++x) {
-        float_type maxEdgeSpeed;
+        float maxEdgeSpeed;
         float_type hNetUpUpper, hNetUpLower;
         float_type hvNetUpUpper, hvNetUpLower;
 
@@ -312,9 +333,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
     for (size_t y = 1; y < nY; ++y) {
+#ifdef VECTORIZE
 #pragma omp simd
+#endif
         for (size_t x = 0; x < nX; ++x) {
-            float_type maxEdgeSpeed;
+            float maxEdgeSpeed;
             float_type hNetUpUpper, hNetUpLower;
             float_type hvNetUpUpper, hvNetUpLower;
 
@@ -351,7 +374,7 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         *maxTimestep = std::min(pBlock->getDx() / l_maxWaveSpeed, pBlock->getDy() / l_maxWaveSpeed);
 
         // reduce maximum time step size by "safety factor"
-        *maxTimestep *= (float) .4; //CFL-number = .5
+        *maxTimestep *= SWECodelets::CFL_NUMBER; //CFL-number = .5
     } else
         //might happen in dry cells
         *maxTimestep = std::numeric_limits<float>::max();
@@ -360,6 +383,11 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+
+#ifdef ENABLE_CUDA
+    codelet.where |= STARPU_CUDA;
+    codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
+#endif
     codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;
     codelet.nbuffers = 8;
     codelet.modes[0] = STARPU_R;
@@ -384,6 +412,10 @@ void variableMin_cpu(void *buffers[], void *cl_args) {
 starpu_codelet SWECodelets::variableMin = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+#ifdef ENABLE_CUDA
+    codelet.where |= STARPU_CUDA;
+    codelet.cuda_funcs[0] = &variableMin_cuda;
+#endif
     codelet.cpu_funcs[0] = &variableMin_cpu;
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
@@ -399,6 +431,10 @@ void variableSetInf_cpu(void *buffers[], void *cl_args) {
 starpu_codelet SWECodelets::variableSetInf = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+#ifdef ENABLE_CUDA
+    codelet.where |= STARPU_CUDA;
+    codelet.cuda_funcs[0] = &variableSetInf_cuda;
+#endif
     codelet.cpu_funcs[0] = &variableSetInf_cpu;
     codelet.nbuffers = 1;
     codelet.modes[0] = STARPU_W;

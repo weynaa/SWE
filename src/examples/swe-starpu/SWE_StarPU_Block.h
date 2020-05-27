@@ -165,9 +165,9 @@ public:
     /// returns #ny, i.e. the grid size in y-direction
     int getNy() const noexcept { return ny; }
 
-    float getDx() const noexcept {return dx;}
+    float getDx() const noexcept { return dx; }
 
-    float getDy() const noexcept {return dy;}
+    float getDy() const noexcept { return dy; }
 
     // Konstanten:
     /// static variable that holds the gravity constant (g = 9.81 m/s^2):

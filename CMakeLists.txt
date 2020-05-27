@@ -82,12 +82,16 @@ if (STARPU_FOUND)
             src/examples/swe-starpu/SWE_StarPU_Block.cpp
             src/examples/swe-starpu/codelets.h
             src/examples/swe-starpu/codelets.cpp
-            src/examples/swe-starpu/SWE_StarPU_Sim.cpp src/examples/swe-starpu/SWE_StarPU_Sim.h)
+            src/examples/swe-starpu/SWE_StarPU_Sim.cpp
+            src/examples/swe-starpu/SWE_StarPU_Sim.h
+            src/examples/swe-starpu/codelets.cuh
+            src/examples/swe-starpu/codelets.cu)
     target_compile_definitions(swe PUBLIC ENABLE_STARPU)
     target_compile_definitions(swe-starpu PUBLIC ENABLE_STARPU)
     if(ENABLE_CUDA)
         target_sources(swe-starpu PRIVATE src/examples/swe-starpu/testkernels.cu)
         target_compile_definitions(swe-starpu PUBLIC ENABLE_CUDA)
+        target_compile_options(swe-starpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr >)
     endif()
     if(ENABLE_OPENCL)
         target_compile_definitions(swe-starpu PUBLIC ENABLE_OPENCL)
