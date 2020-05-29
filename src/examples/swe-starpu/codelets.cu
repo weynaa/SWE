@@ -48,51 +48,51 @@ computeNumericalFluxes_border(SWE_HUV_Matrix_interface mainBlock, SWE_HUV_Matrix
                               float dX_inv, float dY_inv, float dX, float dY) {
     const auto index = blockIdx.x * blockDim.x + threadIdx.x;
     __shared__ float maxEdgeSpeed[CUDA_THREADS_PER_BLOCK];
-    if (index >= n) {
-        return;
+    if (index < n) {
+        float_type hNetUpNeighbour, hNetUpMain;
+        float_type huNetUpNeighbour, huNetUpMain;
+
+        const uint32_t mainBlockX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? mainBlock.nX - 1 : index);
+        const uint32_t mainBlockY = side == BND_TOP ? 0 : (side == BND_BOTTOM ? mainBlock.nY - 1 : index);
+        const uint32_t neighbourX = side == BND_LEFT || side == BND_RIGHT ? 0 : index;
+        const uint32_t neighbourY = side == BND_TOP || BND_BOTTOM ? 0 : index;
+        float_type hNeighbour = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&neighbourBlock, neighbourX, neighbourY);
+        float_type hMain = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, mainBlockX, mainBlockY);
+        float_type huNeighbour = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&neighbourBlock, neighbourX, neighbourY);
+        float_type huMain = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, mainBlockX,mainBlockY );
+        float_type bNeighbour = ((float_type *)
+                STARPU_MATRIX_GET_PTR(&b))[
+                (mainBlockY + (side == BND_BOTTOM ? 2 : (side == BND_TOP ? 0 : 1))) * STARPU_MATRIX_GET_LD(&b) +
+                (mainBlockX + (side == BND_RIGHT ? 2 : (side == BND_LEFT ? 0 : 1)))];
+        float_type bMain = ((float_type *)
+                STARPU_MATRIX_GET_PTR(&b))[(mainBlockY + 1) * STARPU_MATRIX_GET_LD(&b) + (mainBlockX + 1)];
+
+
+        waveSolverCuda(
+                            hNeighbour,  hMain,
+                            huNeighbour, huMain,
+                            bNeighbour,  bMain,
+                            hNetUpNeighbour, hNetUpMain,
+                            huNetUpNeighbour, huNetUpMain,
+                            maxEdgeSpeed[threadIdx.x]
+                           );
+
+
+        if (side == BND_RIGHT || side == BND_LEFT) {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, mainBlockX, mainBlockY) += dX_inv * hNetUpMain;
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, mainBlockX, mainBlockY) += dX_inv * huNetUpMain;
+        } else {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, mainBlockX, mainBlockY) += dY_inv * hNetUpMain;
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&netUpdates, mainBlockX, mainBlockY) += dY_inv * huNetUpMain;
+        }
     }
-    float_type hNetUpNeighbour, hNetUpMain;
-    float_type huNetUpNeighbour, huNetUpMain;
-
-    const uint32_t mainBlockX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? mainBlock.nX - 1 : index);
-    const uint32_t mainBlockY = side == BND_TOP ? 0 : (side == BND_BOTTOM ? mainBlock.nY - 1 : index);
-    const uint32_t neighbourX = side == BND_LEFT || side == BND_RIGHT ? 0 : index;
-    const uint32_t neighbourY = side == BND_TOP || BND_BOTTOM ? 0 : index;
-    float_type hNeighbour = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&neighbourBlock, neighbourX, neighbourY);
-    float_type hMain = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, mainBlockY, mainBlockX);
-    float_type huNeighbour = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&neighbourBlock, neighbourX, neighbourY);
-    float_type huMain = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, mainBlockY, mainBlockX);
-    float_type bNeighbour = ((float_type * )
-            STARPU_MATRIX_GET_PTR(&b))[
-            (mainBlockY + (side == BND_BOTTOM ? 2 : (side == BND_TOP ? 0 : 1))) * STARPU_MATRIX_GET_LD(&b) +
-            (mainBlockX + (side == BND_RIGHT ? 2 : (side == BND_LEFT ? 0 : 1)))];
-    float_type bMain = ((float_type * )
-            STARPU_MATRIX_GET_PTR(&b))[(mainBlockY + 1) * STARPU_MATRIX_GET_LD(&b) + (mainBlockX + 1)];
-
-
-#if defined(SOLVER_AUGRIE)
-    waveSolverCuda(
-                        hNeighbour,  hMain,
-                        huNeighbour, huMain,
-                        bNeighbour,  bMain,
-                        hNetUpNeighbour, hNetUpMain,
-                        huNetUpNeighbour, huNetUpMain,
-                        maxEdgeSpeed[threadIdx.x]
-                       );
-#endif
-
-
-    if (side == BND_RIGHT || side == BND_LEFT) {
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, mainBlockY, mainBlockX) += dX_inv * hNetUpMain;
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, mainBlockY, mainBlockX) += dX_inv * huNetUpMain;
-    } else {
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, mainBlockY, mainBlockX) += dY_inv * hNetUpMain;
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&netUpdates, mainBlockY, mainBlockX) += dY_inv * huNetUpMain;
+    else{
+        maxEdgeSpeed[threadIdx.x] = 0;
     }
     __syncthreads();
     //Block wide reduction using shared memory
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (threadIdx.x < s) {
+        if (threadIdx.x < s && threadIdx.x+s <CUDA_THREADS_PER_BLOCK) {
             maxEdgeSpeed[threadIdx.x] = fmax(maxEdgeSpeed[threadIdx.x], maxEdgeSpeed[threadIdx.x + s]);
         }
         __syncthreads();
@@ -117,62 +117,61 @@ void computeNumericalFluxes_mainBlock(SWE_HUV_Matrix_interface mainBlock, starpu
     const auto threadIdxLin = threadIdx.y*blockDim.x+threadIdx.x;
 
     __shared__ float maxEdgeSpeed[CUDA_THREADS_PER_BLOCK];
+    maxEdgeSpeed[threadIdxLin] = 0;
+    if (idxX < mainBlock.nX-1 &&idxY < mainBlock.nY) {
+        float_type hNetUpLeft, hNetUpRight;
+        float_type huNetUpLeft, huNetUpRight;
 
-    if (idxX >= mainBlock.nX-1 || idxY >= mainBlock.nY-1) {
-        return;
+        float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY);
+        float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX + 1, idxY);
+        float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX, idxY);
+        float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX + 1, idxY);
+
+        float_type bLeft = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX + 1];
+        float_type bRight = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX + 2];
+        float l_maxEdgeSpeed;
+        waveSolverCuda(
+                hLeft, hRight,
+                huLeft, huRight,
+                bLeft, bRight,
+                hNetUpLeft, hNetUpRight,
+                huNetUpLeft, huNetUpRight,
+                l_maxEdgeSpeed
+        );
+        maxEdgeSpeed[threadIdxLin] =fmax( maxEdgeSpeed[threadIdxLin],l_maxEdgeSpeed);
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX, idxY) += dX_inv * hNetUpLeft;
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX + 1, idxY) += dX_inv * hNetUpRight;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX, idxY) += dX_inv * huNetUpLeft;
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX + 1, idxY) += dX_inv * huNetUpRight;
     }
-    float_type hNetUpLeft, hNetUpRight;
-    float_type huNetUpLeft, huNetUpRight;
+    if(idxX < mainBlock.nX && idxY < mainBlock.nY-1){
+        float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY);
+        float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY + 1);
+        float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY);
+        float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY + 1);
 
-    float_type hLeft = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY);
-    float_type hRight = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX+1, idxY);
-    float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX, idxY);
-    float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX+1, idxY);
+        float_type bUpper = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX + 1];
+        float_type bLower = ((float_type * )(b.ptr))[(idxY + 2) * b.ld + idxX + 1];
 
-    float_type bLeft = ((float_type*)(b.ptr))[(idxY+1)*b.ld+idxX+1];
-    float_type bRight = ((float_type*)(b.ptr))[(idxY+1)*b.ld+idxX+2];
+        float_type hNetUpUpper, hNetUpLower;
+        float_type hvNetUpUpper, hvNetUpLower;
+        float l_maxEdgeSpeed;
+        waveSolverCuda(
+                            hUpper,  hLower,
+                            hvUpper, hvLower,
+                            bUpper, bLower,
+                            hNetUpUpper, hNetUpLower,
+                            hvNetUpUpper, hvNetUpLower,
+                            l_maxEdgeSpeed
+                           );
 
-#if defined(SOLVER_AUGRIE)
-    waveSolverCuda(
-                        hLeft,  hRight,
-                        huLeft, huRight,
-                        bLeft, bRight,
-                        hNetUpLeft, hNetUpRight,
-                        huNetUpLeft, huNetUpRight,
-                        maxEdgeSpeed[threadIdxLin]
-                       );
-#endif
+        maxEdgeSpeed[threadIdxLin] = fmax(maxEdgeSpeed[threadIdxLin], l_maxEdgeSpeed);
 
-    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX, idxY) += dX_inv*hNetUpLeft;
-    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX+1, idxY) += dX_inv*hNetUpRight;
-    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX, idxY) += dX_inv*huNetUpLeft;
-    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX+1, idxY) += dX_inv*huNetUpRight;
-
-    float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY);
-    float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY+1);
-    float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY);
-    float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY+1);
-
-    float_type bUpper = ((float_type*)(b.ptr))[(idxY+1)*b.ld+idxX+1];
-    float_type bLower = ((float_type*)(b.ptr))[(idxY+2)*b.ld+idxX+1];
-    float l_maxEdgeSpeed;
-#if defined(SOLVER_AUGRIE)
-    waveSolverCuda(
-                        hUpper,  hLower,
-                        hvUpper, hvLower,
-                        bUpper, bLower,
-                        hNetUpLeft, hNetUpRight,
-                        huNetUpLeft, huNetUpRight,
-                        l_maxEdgeSpeed
-                       );
-#endif
-    maxEdgeSpeed[threadIdxLin] = fmax( maxEdgeSpeed[threadIdxLin],l_maxEdgeSpeed);
-
-    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY) += dY_inv*hNetUpLeft;
-    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY+1) += dY_inv*hNetUpRight;
-    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY)+= dY_inv*huNetUpLeft;
-    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY+1)+= dY_inv*huNetUpRight;
-
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX, idxY) += dY_inv * hNetUpUpper;
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX, idxY + 1) += dY_inv * hNetUpLower;
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&netUpdates, idxX, idxY) += dY_inv * hvNetUpUpper;
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&netUpdates, idxX, idxY + 1) += dY_inv * hvNetUpLower;
+    }
     __syncthreads();
     //Block wide reduction using shared memory
     for (unsigned int s = (blockDim.x*blockDim.y) / 2; s > 0; s >>= 1) {
@@ -223,6 +222,7 @@ void computeNumericalFluxes_cuda(void *buffers[], void *cl_arg) {
     cudaMemsetAsync(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0,
                     sizeof(float_type) * nX * nY, stream);
 
+/*
     uint32_t gridSize = (nX + CUDA_THREADS_PER_BLOCK - 1) / CUDA_THREADS_PER_BLOCK;
     computeNumericalFluxes_border<BND_LEFT>
     <<<gridSize, CUDA_THREADS_PER_BLOCK, 0, stream>>>(
@@ -277,6 +277,7 @@ void computeNumericalFluxes_cuda(void *buffers[], void *cl_arg) {
             dX,
             dY
     );
+*/
 
     const auto blockWidth = std::floor(std::sqrt(CUDA_THREADS_PER_BLOCK));
     dim3 threads(blockWidth,blockWidth);
@@ -323,3 +324,47 @@ void variableSetInf_cuda(void *buffers[], void *cl_args) {
     cudaStreamSynchronize(stream);
 }
 
+__global__
+void updateUnkowns_cuda_kernel(const SWE_HUV_Matrix_interface myBlock, const SWE_HUV_Matrix_interface updates,
+        const float*const dt,
+        const size_t nX,
+        const size_t nY){
+    const auto x = blockIdx.x*blockDim.x+threadIdx.x;
+    const auto y = blockIdx.y*blockDim.y+threadIdx.y;
+    if(x >= nX || y >= nY){
+        return;
+    }
+    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(&updates, x, y);
+    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&updates, x, y);
+    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&updates, x, y);
+    if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlock, x, y) < SWECodelets::DRY_LIMIT) {
+        STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlock, x, y) =
+        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlock, x, y) =
+        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlock, x, y) = 0;
+    }
+}
+
+void updateUnknowns_cuda(void* buffers[],void*cl_args){
+    const SWE_StarPU_Block *pBlock;
+    starpu_codelet_unpack_args(cl_args, &pBlock);
+
+    const auto myBlock = buffers[0];
+    const auto updates = buffers[1];
+    const auto dt = (const float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
+
+    const cudaStream_t stream = starpu_cuda_get_local_stream();
+
+    const auto blockWidth = std::floor(std::sqrt(CUDA_THREADS_PER_BLOCK));
+    dim3 threads(blockWidth,blockWidth);
+    dim3 blocks(
+            (pBlock->getNx()+threads.x-1)/threads.x,
+            (pBlock->getNy()+threads.y-1)/threads.y);
+
+    updateUnkowns_cuda_kernel<<<blocks,threads,0,stream>>>(STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlock),
+                                                           STARPU_SWE_HUV_MATRIX_GET_INTERFACE(updates),
+                                                           dt,
+                                                           pBlock->getNx(),
+                                                           pBlock->getNy());
+
+    cudaStreamSynchronize(stream);
+}

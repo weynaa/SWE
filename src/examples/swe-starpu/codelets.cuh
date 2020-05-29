@@ -12,5 +12,7 @@ void variableMin_cuda(void* buffers[],void*cl_args);
 
 void variableSetInf_cuda(void* buffers[],void*cl_args);
 
+void updateUnknowns_cuda(void* buffers[],void*cl_args);
+
 
 #endif //SWE_CODELETS_CUH

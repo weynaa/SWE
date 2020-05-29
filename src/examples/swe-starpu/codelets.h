@@ -5,6 +5,7 @@
 
 struct SWECodelets{
     static constexpr float CFL_NUMBER = 0.4;
+    static constexpr float DRY_LIMIT = 0.1;
     /**
      * Codelet, which updates the Gost Layer for one side of the task
      * Required Paramters:

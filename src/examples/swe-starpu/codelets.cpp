@@ -382,13 +382,13 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
 starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     starpu_codelet codelet = {};
-    codelet.where = STARPU_CPU;
-
+/*    codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;*/
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
 #endif
-    codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;
+
     codelet.nbuffers = 8;
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
@@ -412,11 +412,11 @@ void variableMin_cpu(void *buffers[], void *cl_args) {
 starpu_codelet SWECodelets::variableMin = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &variableMin_cpu;
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &variableMin_cuda;
 #endif
-    codelet.cpu_funcs[0] = &variableMin_cpu;
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
@@ -460,7 +460,7 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
             STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
             STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates, x, y);
 
-            if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) < 0.1) {
+            if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) < SWECodelets::DRY_LIMIT) {
                 STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) =
                 STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) =
                 STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) = 0;
@@ -472,8 +472,13 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
 
 starpu_codelet SWECodelets::updateUnknowns = []() {
     starpu_codelet codelet = {};
-    codelet.where = STARPU_CPU;
-    codelet.cpu_funcs[0] = &updateUnkowns_cpu;
+/*    codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &updateUnkowns_cpu;*/
+#ifdef ENABLE_CUDA
+    codelet.where |= STARPU_CUDA;
+    codelet.cuda_funcs[0] = &updateUnknowns_cuda;
+#endif
+
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
@@ -490,6 +495,7 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     std::vector<float> *checkpoints;
     starpu_codelet_unpack_args(cl_args, &pSim, &checkpoints);
     *currentTime += *timestep;
+    std::cout << "t: "<<*currentTime << '\n';
     if (*nextTimestampToWrite <= *currentTime) {
         pSim->writeTimeStep();
         auto findIt = std::find_if(checkpoints->cbegin(), checkpoints->cend(),
