@@ -122,7 +122,7 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
 starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
-#ifdef ENABLe_CUDA
+#ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateGhostLayers_cuda;
 #endif
