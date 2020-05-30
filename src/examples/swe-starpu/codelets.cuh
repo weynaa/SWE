@@ -14,5 +14,7 @@ void variableSetInf_cuda(void* buffers[],void*cl_args);
 
 void updateUnknowns_cuda(void* buffers[],void*cl_args);
 
+void updateGhostLayers_cuda(void *buffers[], void *cl_arg);
+
 
 #endif //SWE_CODELETS_CUH
