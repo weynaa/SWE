@@ -84,17 +84,29 @@ if (STARPU_FOUND)
             src/examples/swe-starpu/codelets.cpp
             src/examples/swe-starpu/SWE_StarPU_Sim.cpp
             src/examples/swe-starpu/SWE_StarPU_Sim.h
-            src/examples/swe-starpu/codelets.cuh
-            src/examples/swe-starpu/codelets.cu)
+            )
     target_compile_definitions(swe PUBLIC ENABLE_STARPU)
     target_compile_definitions(swe-starpu PUBLIC ENABLE_STARPU)
     if(ENABLE_CUDA)
-        target_sources(swe-starpu PRIVATE src/examples/swe-starpu/testkernels.cu)
+        target_sources(swe-starpu PRIVATE
+                src/examples/swe-starpu/codelets.cuh
+                src/examples/swe-starpu/codelets.cu
+                )
         target_compile_definitions(swe-starpu PUBLIC ENABLE_CUDA)
         target_compile_options(swe-starpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr >)
     endif()
     if(ENABLE_OPENCL)
         target_compile_definitions(swe-starpu PUBLIC ENABLE_OPENCL)
+        add_custom_command(TARGET swe-starpu PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/src/examples/swe-starpu/codelets.cl
+                $<TARGET_FILE_DIR:swe-starpu>/opencl/codelets.cl
+                MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/src/examples/swe-starpu/codelets.cl
+                )
+        target_sources(swe-starpu PRIVATE
+                src/examples/swe-starpu/codelets_cl.cpp
+                src/examples/swe-starpu/codelets_cl.h
+                )
     endif()
     target_include_directories (swe PUBLIC ${STARPU_INCLUDE_DIRS})
     target_link_directories    (swe PUBLIC ${STARPU_STATIC_LIBRARY_DIRS})

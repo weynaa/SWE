@@ -10,6 +10,9 @@
 #ifdef ENABLE_CUDA
 #include "codelets.cuh"
 #endif
+#ifdef ENABLE_OPENCL
+#include "codelets_cl.h"
+#endif
 
 
 void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
@@ -126,6 +129,7 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateGhostLayers_cuda;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
 #endif
 
     codelet.nbuffers = 3;
@@ -390,6 +394,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
 #endif
 
     codelet.nbuffers = 8;
@@ -419,6 +424,7 @@ starpu_codelet SWECodelets::variableMin = []()noexcept {
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &variableMin_cuda;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
 #endif
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
@@ -437,6 +443,7 @@ starpu_codelet SWECodelets::variableSetInf = []()noexcept {
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &variableSetInf_cuda;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
 #endif
     codelet.cpu_funcs[0] = &variableSetInf_cpu;
     codelet.nbuffers = 1;
@@ -480,6 +487,11 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateUnknowns_cuda;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
+#endif
+#ifdef ENABLE_OPENCL
+    codelet.where |= STARPU_OPENCL;
+    codelet.opencl_funcs[0] = &updateUnknowns_opencl;
 #endif
 
     codelet.nbuffers = 3;
@@ -514,8 +526,6 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
 
     }
     pSim->runTimestep();
-
-
 }
 
 starpu_codelet SWECodelets::incrementTime = []() {

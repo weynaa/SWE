@@ -349,9 +349,6 @@ void computeNumericalFluxes_cuda(void *buffers[], void *cl_arg) {
             dX,
             dY
     );
-
-    cudaStreamSynchronize(stream);
-
 }
 
 __global__
@@ -364,7 +361,6 @@ void variableMin_cuda(void *buffers[], void *cl_args) {
     float *b = (float *) STARPU_VARIABLE_GET_PTR(buffers[1]);
     const auto stream = starpu_cuda_get_local_stream();
     variableMin_cuda_kernel<<<1, 1, 0, stream>>>(a, b);
-    cudaStreamSynchronize(stream);
 }
 
 __global__
@@ -376,7 +372,6 @@ void variableSetInf_cuda(void *buffers[], void *cl_args) {
     float *value = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
     const auto stream = starpu_cuda_get_local_stream();
     variableSetInf_cuda_kernel<<<1, 1, 0, stream>>>(value);
-    cudaStreamSynchronize(stream);
 }
 
 __global__
@@ -420,8 +415,6 @@ void updateUnknowns_cuda(void *buffers[], void *cl_args) {
                                                               dt,
                                                               pBlock->getNx(),
                                                               pBlock->getNy());
-
-    cudaStreamSynchronize(stream);
 }
 
 
@@ -667,5 +660,4 @@ void updateGhostLayers_cuda(void *buffers[], void *cl_arg) {
             }
             break;
     }
-    cudaStreamSynchronize(stream);
 }

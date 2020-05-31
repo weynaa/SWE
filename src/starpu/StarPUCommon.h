@@ -8,7 +8,9 @@
 #ifdef ENABLE_CUDA
 #define STARPU_USE_CUDA
 #endif
-
+#ifdef ENABLE_OPENCL
+#define STAPUR_USE_OPENCL
+#endif
 #include <starpu/1.3/starpu.h>
 #endif
 #endif //SWE_STARPUCOMMON_H

@@ -60,6 +60,10 @@
 static constexpr size_t blocksX = 3;
 static constexpr size_t blocksY = 3;
 
+#ifdef ENABLE_OPENCL
+struct starpu_opencl_program opencl_programs;
+#endif
+
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
  */
@@ -122,6 +126,10 @@ int main(int argc, char **argv) {
     //conf.ncuda=0;
     //conf.nopencl=0;
     auto starpuret = starpu_init(&conf);
+#ifdef ENABLE_OPENCL
+   const auto loadRet = starpu_opencl_load_opencl_from_file("opencl/codelets.cl", &opencl_programs, NULL);
+    STARPU_CHECK_RETURN_VALUE(loadRet, "starpu_opencl_load_opencl_from_file");
+#endif
     if (starpuret != 0) {
         std::cerr << "Could not initialize StarPU!\n";
         return 1;
@@ -138,6 +146,9 @@ int main(int argc, char **argv) {
         sim.launchTaskGraph();
         starpu_task_wait_for_all();
     }
+#ifdef ENABLE_OPENCL
+    starpu_opencl_unload_opencl(&opencl_programs);
+#endif
     starpu_shutdown();
     return 0;
 }
