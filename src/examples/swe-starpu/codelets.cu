@@ -3,6 +3,7 @@
 #include <starpu/SWE_HUV_Matrix.h>
 #include <cuda_runtime.h>
 #include "codelets.h"
+#include "../../starpu/SWE_HUV_Matrix.h"
 #include <cfloat>
 #include <iostream>
 
@@ -144,7 +145,7 @@ computeNumericalFluxes_border(SWE_HUV_Matrix_interface mainBlock, SWE_HUV_Matrix
 
     __syncthreads();
 //Block wide reduction using shared memory
-    for (unsigned int s = blockDim.x / 2;s > 0; s >>= 1) {
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
         if (threadIdx.x < s && threadIdx.x + s < CUDA_THREADS_PER_BLOCK) {
             maxEdgeSpeed[threadIdx.x] = fmax(maxEdgeSpeed[threadIdx.x], maxEdgeSpeed[threadIdx.x + s]);
         }
@@ -179,8 +180,8 @@ void computeNumericalFluxes_mainBlock(SWE_HUV_Matrix_interface mainBlock, starpu
         float_type huLeft = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX - 1, idxY);
         float_type huRight = STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&mainBlock, idxX, idxY);
 
-        float_type bLeft = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX];
-        float_type bRight = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX + 1];
+        float_type bLeft = ((float_type *) (b.ptr))[(idxY + 1) * b.ld + idxX];
+        float_type bRight = ((float_type *) (b.ptr))[(idxY + 1) * b.ld + idxX + 1];
         float l_maxEdgeSpeed;
         waveSolverCuda(
                 hLeft, hRight,
@@ -200,14 +201,14 @@ void computeNumericalFluxes_mainBlock(SWE_HUV_Matrix_interface mainBlock, starpu
         STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX - 1, idxY) += dX_inv * huNetUpLeft;
         STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX, idxY) += dX_inv * huNetUpRight;
     }
-    if (idxX < mainBlock.nX && idxY < mainBlock.nY-1) {
+    if (idxX < mainBlock.nX && idxY < mainBlock.nY - 1) {
         float_type hUpper = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY);
         float_type hLower = STARPU_SWE_HUV_MATRIX_GET_H_VAL(&mainBlock, idxX, idxY + 1);
         float_type hvUpper = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY);
         float_type hvLower = STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&mainBlock, idxX, idxY + 1);
 
-        float_type bUpper = ((float_type * )(b.ptr))[(idxY + 1) * b.ld + idxX + 1];
-        float_type bLower = ((float_type * )(b.ptr))[(idxY + 2) * b.ld + idxX + 1];
+        float_type bUpper = ((float_type *) (b.ptr))[(idxY + 1) * b.ld + idxX + 1];
+        float_type bLower = ((float_type *) (b.ptr))[(idxY + 2) * b.ld + idxX + 1];
 
         float_type hNetUpUpper, hNetUpLower;
         float_type hvNetUpUpper, hvNetUpLower;
@@ -423,6 +424,99 @@ void updateUnknowns_cuda(void *buffers[], void *cl_args) {
     cudaStreamSynchronize(stream);
 }
 
+
+template<BoundaryEdge side, BoundaryType boundaryType>
+__global__
+void updateGhostLayers_cuda_kernel(SWE_HUV_Matrix_interface myBlockData, SWE_HUV_Matrix_interface myBorderData,
+                                   SWE_HUV_Matrix_interface myNeighbourData) {
+    constexpr bool vertical = side == BND_LEFT || side == BND_RIGHT;
+    const auto nx = STARPU_SWE_HUV_MATRIX_GET_NX(&myBlockData);
+    const auto ny = STARPU_SWE_HUV_MATRIX_GET_NY(&myBlockData);
+
+    const auto i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (vertical ? ny : nx)) {
+        return;
+    }
+    switch (boundaryType) {
+        case WALL:
+        case OUTFLOW: {
+            const size_t outerX = vertical ? 0 : i + 1;
+            const size_t innerX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? nx - 1 : i);
+            const size_t outerY = vertical ? i : 0;
+            const size_t innerY = side == BND_TOP ? 0 : (side == BND_BOTTOM ? ny - 1 : i);
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, outerX, outerY) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlockData, innerX, innerY);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, outerX, outerY) =
+                    (vertical && boundaryType == WALL ? -1.f : 1.f) *
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(
+                            &myBlockData, innerX, innerY);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, outerX, outerY) =
+                    (!vertical && boundaryType == WALL ? -1.f : 1.f) *
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(
+                            &myBlockData, innerX, innerY);
+        }
+            break;
+        case CONNECT: {
+            const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(&myNeighbourData);
+            const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(&myNeighbourData);
+            const auto boundaryX = vertical ? 0 : 1 + i;
+            const auto boundaryY = vertical ? i : 0;
+
+            const auto neighbourX = side == BND_LEFT ? neighbourNX - 1 : (side == BND_RIGHT ? 0 : i);
+            const auto neigbhourY = side == BND_TOP ? neighbourNY - 1 : (side == BND_BOTTOM ? 0 : i);
+
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myNeighbourData, neighbourX, neigbhourY);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, boundaryX, boundaryY) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myNeighbourData, neighbourX, neigbhourY);
+        }
+            break;
+        case PASSIVE:
+            break;
+        default:
+            //printf("unkown boundary type");
+            break;
+    }
+
+    if (i == 0) {
+        if (side == BND_TOP) {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlockData, 0, 0);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlockData, 0, 0);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlockData, 0, 0);
+        } else if (side == BND_BOTTOM) {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlockData, 0, ny - 1);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlockData, 0, ny - 1);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, 0, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlockData, 0, ny - 1);
+        }
+    } else if (i == (vertical ? ny : nx) - 1) {
+        if (side == BND_TOP) {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlockData, nx - 1, 0);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlockData, nx - 1, 0);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlockData, nx - 1, 0);
+        } else if (side == BND_BOTTOM) {
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(&myBlockData, nx - 1, ny - 1);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&myBlockData, nx - 1, ny - 1);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBorderData, nx + 1, 0) =
+                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(&myBlockData, nx - 1, ny - 1);
+        }
+    }
+
+}
+
 void updateGhostLayers_cuda(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *thisBlock;
     BoundaryEdge side;
@@ -432,102 +526,146 @@ void updateGhostLayers_cuda(void *buffers[], void *cl_arg) {
 #endif
     auto myBlockData = buffers[1];
     auto myBorderData = buffers[0];
+    auto myNeighbourData = buffers[2];
 
-
-    const bool vertical = side == BND_LEFT || side == BND_RIGHT;
     const auto nx = STARPU_SWE_HUV_MATRIX_GET_NX(myBlockData);
     const auto ny = STARPU_SWE_HUV_MATRIX_GET_NY(myBlockData);
+    const bool vertical = side == BND_LEFT || side == BND_RIGHT;
 
-    switch (thisBlock->boundary[side]) {
-        case WALL:
-        case OUTFLOW: {
-            const bool wall = thisBlock->boundary[side] == WALL;
-#ifdef VECTORIZE
-#pragma omp simd
-#endif
-            for (size_t j = 0; j < (vertical ? ny : nx); j++) {
-                const size_t outerX = vertical ? 0 : j + 1;
-                const size_t innerX = side == BND_LEFT ? 0 : (side == BND_RIGHT ? nx - 1 : j);
-                const size_t outerY = vertical ? j : 0;
-                const size_t innerY = side == BND_TOP ? 0 : (side == BND_BOTTOM ? ny - 1 : j);
+    const cudaStream_t stream = starpu_cuda_get_local_stream();
 
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, outerX, outerY) =
-                        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, innerX, innerY);
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, outerX, outerY) = (vertical && wall ? -1.f : 1.f) *
-                                                                                 STARPU_SWE_HUV_MATRIX_GET_HU_VAL(
-                                                                                         myBlockData, innerX, innerY);
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, outerX, outerY) = (!vertical && wall ? -1.f : 1.f) *
-                                                                                 STARPU_SWE_HUV_MATRIX_GET_HV_VAL(
-                                                                                         myBlockData, innerX, innerY);
+    dim3 threads(CUDA_THREADS_PER_BLOCK);
+    dim3 blocks(((vertical ? ny : nx) + threads.x - 1) / threads.x);
 
+    switch (side) {
+        case BND_LEFT:
+            switch (thisBlock->boundary[BND_LEFT]) {
+                case PASSIVE:
+                    updateGhostLayers_cuda_kernel<BND_LEFT, PASSIVE><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case WALL:
+                    updateGhostLayers_cuda_kernel<BND_LEFT, WALL><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case CONNECT:
+                    updateGhostLayers_cuda_kernel<BND_LEFT, CONNECT><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case OUTFLOW:
+                    updateGhostLayers_cuda_kernel<BND_LEFT, OUTFLOW><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
             }
-        }
             break;
-        case CONNECT:
-        case PASSIVE:
+        case BND_RIGHT:
+            switch (thisBlock->boundary[BND_RIGHT]) {
+                case PASSIVE:
+                    updateGhostLayers_cuda_kernel<BND_RIGHT, PASSIVE><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case WALL:
+                    updateGhostLayers_cuda_kernel<BND_RIGHT, WALL><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case CONNECT:
+                    updateGhostLayers_cuda_kernel<BND_RIGHT, CONNECT><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case OUTFLOW:
+                    updateGhostLayers_cuda_kernel<BND_RIGHT, OUTFLOW><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+            }
             break;
-        default:
-            assert(false);
+        case BND_TOP:
+            switch (thisBlock->boundary[BND_TOP]) {
+                case PASSIVE:
+                    updateGhostLayers_cuda_kernel<BND_TOP, PASSIVE><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case WALL:
+                    updateGhostLayers_cuda_kernel<BND_TOP, WALL><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case CONNECT:
+                    updateGhostLayers_cuda_kernel<BND_TOP, CONNECT><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case OUTFLOW:
+                    updateGhostLayers_cuda_kernel<BND_TOP, OUTFLOW><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+            }
+            break;
+        case BND_BOTTOM:
+            switch (thisBlock->boundary[BND_BOTTOM]) {
+                case PASSIVE:
+                    updateGhostLayers_cuda_kernel<BND_BOTTOM, PASSIVE><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case WALL:
+                    updateGhostLayers_cuda_kernel<BND_BOTTOM, WALL><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case CONNECT:
+                    updateGhostLayers_cuda_kernel<BND_BOTTOM, CONNECT><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+                case OUTFLOW:
+                    updateGhostLayers_cuda_kernel<BND_BOTTOM, OUTFLOW><<<blocks, threads, 0, stream>>>(
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBlockData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myBorderData),
+                            STARPU_SWE_HUV_MATRIX_GET_INTERFACE(myNeighbourData)
+                    );
+                    break;
+            }
             break;
     }
-
-    if (thisBlock->boundary[side] == CONNECT) {
-        auto myNeighbourData = buffers[2];
-        const auto neighbourNX = STARPU_SWE_HUV_MATRIX_GET_NX(myNeighbourData);
-        const auto neighbourNY = STARPU_SWE_HUV_MATRIX_GET_NY(myNeighbourData);
-#ifdef VECTORIZE
-#pragma omp simd
-#endif
-        for (size_t i = 0; i < (vertical ? ny : nx); ++i) {
-            const size_t boundaryX = vertical ? 0 : 1 + i;
-            const size_t boundaryY = vertical ? i : 0;
-
-            const size_t neighbourX = side == BND_LEFT ? neighbourNX - 1 : (side == BND_RIGHT ? 0 : i);
-            const size_t neigbhourY = side == BND_TOP ? neighbourNY - 1 : (side == BND_BOTTOM ? 0 : i);
-
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_H_VAL(myNeighbourData, neighbourX, neigbhourY);
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myNeighbourData, neighbourX, neigbhourY);
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, boundaryX, boundaryY) =
-                    STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myNeighbourData, neighbourX, neigbhourY);
-        }
-    }
-    //Update the corner values only the top and bottom boundary contain these
-    if (side == BND_TOP) {
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, 0, 0);
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, 0, 0);
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, 0, 0);
-
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, nx - 1, 0);
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, nx - 1, 0);
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, nx - 1, 0);
-    }
-    if (side == BND_BOTTOM) {
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, 0, ny - 1);
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, 0, ny - 1);
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, 0, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, 0, ny - 1);
-
-        STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlockData, nx - 1, ny - 1);
-        STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlockData, nx - 1, ny - 1);
-        STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBorderData, nx + 1, 0) =
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlockData, nx - 1, ny - 1);
-    }
-
-#ifdef DBG
-    cout << "Set CONNECT boundary conditions in main memory " << endl << flush;
-#endif
-
-
+    cudaStreamSynchronize(stream);
 }

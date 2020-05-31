@@ -122,11 +122,12 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
 starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &updateGhostLayers_cpu;
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateGhostLayers_cuda;
 #endif
-    codelet.cpu_funcs[0] = &updateGhostLayers_cpu;
+
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_W;
     codelet.modes[1] = STARPU_R;
@@ -384,8 +385,8 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
 starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     starpu_codelet codelet = {};
-/*    codelet.where = STARPU_CPU;
-    codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;*/
+    codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
@@ -474,8 +475,8 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
 
 starpu_codelet SWECodelets::updateUnknowns = []() {
     starpu_codelet codelet = {};
-/*    codelet.where = STARPU_CPU;
-    codelet.cpu_funcs[0] = &updateUnkowns_cpu;*/
+    codelet.where = STARPU_CPU;
+    codelet.cpu_funcs[0] = &updateUnkowns_cpu;
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateUnknowns_cuda;
