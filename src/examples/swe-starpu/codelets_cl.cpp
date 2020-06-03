@@ -186,7 +186,8 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         adjustGlobalDim(global,workGroupSize);
 
         cl_event dependencies[]={hMemset,huMemset,hvMemset};
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,NULL);
+        cl_event leftEvent,rightEvent,topEvent,botEvent;
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,&leftEvent);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
 
@@ -199,7 +200,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvRightNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,NULL);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&leftEvent,&rightEvent);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
 
@@ -214,7 +215,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvTopNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,NULL);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&rightEvent,&botEvent);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
         const auto hBottomNeighbour = (cl_mem) STARPU_SWE_HUV_MATRIX_GET_H_PTR(bottomGhost);
@@ -226,7 +227,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvBottomNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,NULL);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&botEvent,&topEvent);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
         starpu_opencl_release_kernel(kernel);
