@@ -192,10 +192,7 @@ void computeNumericalFluxes_mainBlock(SWE_HUV_Matrix_interface mainBlock, starpu
                 l_maxEdgeSpeed
         );
         maxEdgeSpeed[threadIdxLin] = fmax(maxEdgeSpeed[threadIdxLin], l_maxEdgeSpeed);
-        /*if(hNetUpLeft!= 0 || huNetUpLeft != 0 || hNetUpRight != 0 || huNetUpRight != 0) {
-            printf("netUpLeft: %f, netUpRight: %f, huNetUpLeft: %f, huNetUpRight: %f\n", hNetUpLeft, hNetUpRight,
-                   huNetUpLeft, huNetUpRight);
-        }*/
+
         STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX - 1, idxY) += dX_inv * hNetUpLeft;
         STARPU_SWE_HUV_MATRIX_GET_H_VAL(&netUpdates, idxX, idxY) += dX_inv * hNetUpRight;
         STARPU_SWE_HUV_MATRIX_GET_HU_VAL(&netUpdates, idxX - 1, idxY) += dX_inv * huNetUpLeft;

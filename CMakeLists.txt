@@ -97,11 +97,13 @@ if (STARPU_FOUND)
     endif()
     if(ENABLE_OPENCL)
         target_compile_definitions(swe-starpu PUBLIC ENABLE_OPENCL)
-        add_custom_command(TARGET swe-starpu PRE_BUILD
+        target_link_libraries(swe-starpu PRIVATE OpenCL::OpenCL)
+        add_custom_command(TARGET swe-starpu POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_SOURCE_DIR}/src/examples/swe-starpu/codelets.cl
                 $<TARGET_FILE_DIR:swe-starpu>/opencl/codelets.cl
-                MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/src/examples/swe-starpu/codelets.cl
+                DEPENDS ${CMAKE_SOURCE_DIR}/src/examples/swe-starpu/codelets.cl
+                COMMENT "copying opencl-kernels to output"
                 )
         target_sources(swe-starpu PRIVATE
                 src/examples/swe-starpu/codelets_cl.cpp
@@ -112,9 +114,6 @@ if (STARPU_FOUND)
     target_link_directories    (swe PUBLIC ${STARPU_STATIC_LIBRARY_DIRS})
     target_link_libraries      (swe PUBLIC ${STARPU_STATIC_LIBRARIES})
     target_link_libraries(swe-starpu PUBLIC swe)
-    if(ENABLE_OPENCL)
-        target_link_libraries(swe-starpu PRIVATE OpenCL::OpenCL)
-    endif()
     message(STATUS "StarPU 1.3 found")
 else ()
     message(STATUS "StarPU not found")
