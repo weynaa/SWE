@@ -400,7 +400,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
     codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
 #endif
-#ifdef ENABLE_CUDA
+#ifdef ENABLE_OPENCL
     codelet.where |= STARPU_OPENCL;
     codelet.opencl_funcs[0] = &computeNumericalFluxes_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
@@ -514,7 +514,7 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
 #ifdef ENABLE_OPENCL
     codelet.where |= STARPU_OPENCL;
     codelet.opencl_funcs[0] = &updateUnknowns_opencl;
-    codelet.opencl_flags[0] = STARPU_CUDA_ASYNC;
+    //codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_RW;
@@ -534,6 +534,11 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     *currentTime += *timestep;
     std::cout << "t: "<<*currentTime << '\n';
     if (*nextTimestampToWrite <= *currentTime) {
+        static size_t c = 0;
+        if(c++ >3){
+            return;
+        }
+
         pSim->writeTimeStep();
         auto findIt = std::find_if(checkpoints->cbegin(), checkpoints->cend(),
                                    [&](const float test) {

@@ -2,6 +2,9 @@
 #define real float
 #define integer unsigned int
 
+#pragma OPENCL EXTENSION cl_amd_printf : enable
+#pragma OPENCL EXTENSION cl_intel_printf : enable
+
 __kernel void updateUnknowns_opencl_kernel(
         __global float_type *mainH,
         __global float_type *mainHu,
@@ -45,29 +48,26 @@ typedef enum BoundaryEdge {
     BND_LEFT, BND_RIGHT, BND_BOTTOM, BND_TOP
 } BoundaryEdge;
 
-enum RiemannState {
-    DryDry = 0,
-    WetWet = 1,
-    WetDryInundation = 2,
-    WetDryWall = 3,
-    WetDryWallInundation = 4,
-    DryWetInundation = 5,
-    DryWetWall = 6,
-    DryWetWallInundation = 7
-};
 
-enum RarefactionEnum {
-    DrySingleRarefaction = 0,
-    SingleRarefactionDry = 1,
-    ShockShock = 2,
-    ShockRarefaction = 3,
-    RarefactionShock = 4,
-    RarefactionRarefaction = 5
-
-};
+#define DryDry 0
+#define WetWet 1
+#define WetDryInundation 2
+#define WetDryWall 3
+#define WetDryWallInundation 4
+#define DryWetInundation 5
+#define DryWetWall 6
+#define DryWetWallInundation 7
 
 
-inline void
+#define DrySingleRarefaction 0
+#define SingleRarefactionDry 1
+#define ShockShock 2
+#define ShockRarefaction 3
+#define RarefactionShock 4
+#define RarefactionRarefaction 5
+
+
+void
 computeMiddleState(
         const real i_hLeft, const real i_hRight,
         const real i_uLeft, const real i_uRight,
@@ -241,7 +241,7 @@ void waveSolver(
 /***************************************************************************************
  * Determine Wet Dry State Begin
  **************************************************************************************/
-    integer wetDryState;
+    integer wetDryState = WetWet;
     //compute speeds or set them to zero (dry cells)
     if (hLeft > dryTol) {
         uLeft = huLeft / hLeft;
@@ -415,9 +415,7 @@ void waveSolver(
 
         //HLL middle state
         //  \cite[theorem 3.1]{george2006finite}, \cite[ch. 4.1]{george2008augmented}
-        const real hLLMiddleHeight = fmax(
-                (huLeft - huRight + extEinfeldtSpeeds[1] * hRight - extEinfeldtSpeeds[0] * hLeft) /
-                (extEinfeldtSpeeds[1] - extEinfeldtSpeeds[0]), (real)(0));
+        const real hLLMiddleHeight = fmax((huLeft - huRight + extEinfeldtSpeeds[1] * hRight - extEinfeldtSpeeds[0] * hLeft) / (extEinfeldtSpeeds[1] - extEinfeldtSpeeds[0]), (real)(0.f));
 
         //define eigenvalues
         const real eigenValues[3] = {
@@ -452,8 +450,7 @@ void waveSolver(
         real rightHandSide[3] = {
                 hRight - hLeft,
                 huRight - huLeft,
-                huRight * uRight + (real)(0.5) * g * hRight * hRight -
-                (huLeft * uLeft + (real)(0.5) * g * hLeft * hLeft)
+                huRight * uRight + (real)(0.5) * g * hRight * hRight - (huLeft * uLeft + (real)(0.5) * g * hLeft * hLeft)
         };
 
         //compute steady state wave
@@ -469,19 +466,15 @@ void waveSolver(
         //  \cite[ch. 6.5.2]{george2006finite}, \cite[ch. 4.2.3]{george2008augmented}
         if (eigenValues[0] < -zeroTol && eigenValues[2] > zeroTol) {
             //subsonic
-            steadyStateWave[0] = fmax(steadyStateWave[0],
-                                      hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[0]);
-            steadyStateWave[0] = fmin(steadyStateWave[0],
-                                      hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[2]);
+            steadyStateWave[0] = fmax(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[0]);
+            steadyStateWave[0] = fmin(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[2]);
         } else if (eigenValues[0] > zeroTol) {
             //supersonic right TODO: motivation?
             steadyStateWave[0] = fmax(steadyStateWave[0], -hLeft);
-            steadyStateWave[0] = fmin(steadyStateWave[0],
-                                      hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[0]);
+            steadyStateWave[0] = fmin(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[0]);
         } else if (eigenValues[2] < -zeroTol) {
             //supersonic left TODO: motivation?
-            steadyStateWave[0] = fmax(steadyStateWave[0],
-                                      hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[2]);
+            steadyStateWave[0] = fmax(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[2]);
             steadyStateWave[0] = fmin(steadyStateWave[0], hRight);
         }
 
@@ -609,7 +602,7 @@ void waveSolver(
 
 //https://stackoverflow.com/questions/18950732/atomic-max-for-floats-in-opencl
 //Function to perform the atomic max
-inline void atomicMin(volatile __global float *source, const float operand) {
+void atomicMin(volatile __global float *source, const float operand) {
     union {
         unsigned int intVal;
         float floatVal;
@@ -633,6 +626,7 @@ __kernel void computeNumericalFluxes_border_opencl_kernel(
         __global float_type *huNeighbour,
         __global float_type *hvNeighbour,
         __global float_type *b,
+        const uint bLD,
         __global float *maxTimestep,
         __global float_type *hNetUpdates,
         __global float_type *huNetUpdates,
@@ -644,12 +638,12 @@ __kernel void computeNumericalFluxes_border_opencl_kernel(
         const float dX,
         const float dY,
         const BoundaryEdge side,
-        __local float *localMaxEdgeSpeed
+        __local float* localMaxEdgeSpeed
 ) {
     const unsigned int index = get_global_id(0);
-    const unsigned int lidx = get_local_id(0);
-    localMaxEdgeSpeed[lidx] = 0;
-    const unsigned int n = side == BND_LEFT || side == BND_RIGHT ? nY : nX;
+    const uint lidx = get_local_id(0);
+    localMaxEdgeSpeed[lidx] = 0.f;
+    const unsigned int n = (side == BND_LEFT || side == BND_RIGHT) ? nY : nX;
     if (index < n) {
         if (side == BND_RIGHT || side == BND_LEFT) {
 
@@ -665,10 +659,10 @@ __kernel void computeNumericalFluxes_border_opencl_kernel(
             float_type huRight = (side == BND_LEFT ? huNeighbour : huMain)[
                     index
             ];
-            float_type bLeft = b[
-                    (index + 1) * (nX + 2) +
-                    (side == BND_LEFT ? 0 : nX)];
-            float_type bRight = b[(index + 1) * (nX + 2) + 1 +
+
+            float_type bLeft = b[(index + 1) * bLD +
+                                 (side == BND_LEFT ? 0 : nX)];
+            float_type bRight = b[(index + 1) * bLD + 1 +
                                   (side == BND_LEFT ? 0 : nX)];
 
             float_type updates[5];
@@ -679,15 +673,18 @@ __kernel void computeNumericalFluxes_border_opencl_kernel(
                     bLeft, bRight,
                     updates
             );
+
             localMaxEdgeSpeed[lidx] = fmax(localMaxEdgeSpeed[lidx], updates[4]);
 
             if (side == BND_LEFT) {
+
                 hNetUpdates[index] += dX_inv * updates[1];
                 huNetUpdates[index] += dX_inv * updates[3];
             } else {
                 hNetUpdates[index * nX + nX - 1] += dX_inv * updates[0];
                 huNetUpdates[index * nX + nX - 1] += dX_inv * updates[2];
             }
+
         } else {
 
             float_type hUpper = (side == BND_TOP ? hNeighbour : hMain)[(side == BND_TOP ? 0 : (nY - 1)) * nX +
@@ -731,7 +728,7 @@ __kernel void computeNumericalFluxes_border_opencl_kernel(
     }
     if (lidx == 0) {
         float localMaxTimeStep = FLT_MAX;
-        if (localMaxEdgeSpeed[0] > 0) {
+        if (localMaxEdgeSpeed[0] > 0.0001) {
             localMaxTimeStep = fmin(dX / localMaxEdgeSpeed[0], dY / localMaxEdgeSpeed[0]) * 0.4;
         }
         atomicMin(maxTimestep, localMaxTimeStep);
@@ -743,6 +740,7 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         __global float_type *huMain,
         __global float_type *hvMain,
         __global float_type *b,
+        unsigned int bLD,
         __global float *maxTimestep,
         __global float_type *hNetUpdates,
         __global float_type *huNetUpdates,
@@ -753,7 +751,6 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         const float dY_inv,
         const float dX,
         const float dY,
-        const BoundaryEdge side,
         __local float *localMaxEdgeSpeed
 ) {
     const unsigned int idxX = get_global_id(0);
@@ -771,8 +768,8 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         float_type huLeft = huMain[idxY*nX+idxX - 1];
         float_type huRight = huMain[idxY*nX+idxX];
 
-        float_type bLeft = b[(idxY + 1) * (nX+2) + idxX];
-        float_type bRight = b[(idxY + 1) * (nX+2) + idxX + 1];
+        float_type bLeft = b[(idxY + 1) * bLD + idxX];
+        float_type bRight = b[(idxY + 1) * bLD + idxX + 1];
         waveSolver(
                 hLeft, hRight,
                 huLeft, huRight,
@@ -786,16 +783,16 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         huNetUpdates[idxY*nX+idxX-1] += dX_inv * updates[2];
         huNetUpdates[idxY*nX+idxX] += dX_inv * updates[3];
     }
-    if (idxX < nX && idxY < nY - 1) {
+    /*if (idxX < nX &&idxY>0&& idxY < nY) {
         float_type updates[5];
 
-        float_type hUpper = hMain[idxY*nX+idxX];
-        float_type hLower = hMain[(idxY+1)*nX+idxX];
-        float_type hvUpper = hvMain[idxY*nX+idxX - 1];
-        float_type hvLower = hvMain[(idxY+1)*nX+idxX];
+        float_type hUpper = hMain[(idxY-1)*nX+idxX];
+        float_type hLower = hMain[idxY*nX+idxX];
+        float_type hvUpper = hvMain[(idxY-1)*nX+idxX];
+        float_type hvLower = hvMain[idxY*nX+idxX];
 
-        float_type bUpper = b[(idxY + 1) * (nX+2) + idxX+1];
-        float_type bLower = b[(idxY + 2) * (nX+2) + idxX + 1];
+        float_type bUpper = b[(idxY ) * bLD + idxX+1];
+        float_type bLower = b[(idxY + 1) * bLD + idxX + 1];
         waveSolver(
                 hUpper, hLower,
                 hvUpper, hvLower,
@@ -804,11 +801,11 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         );
         localMaxEdgeSpeed[threadIdxLin] = fmax(localMaxEdgeSpeed[threadIdxLin], updates[4]);
 
-        hNetUpdates[idxY*nX+idxX] += dY_inv * updates[0];
-        hNetUpdates[(idxY+1)*nX+idxX] += dY_inv * updates[1];
-        huNetUpdates[idxY*nX+idxX] += dY_inv * updates[2];
-        huNetUpdates[(idxY+1)*nX+idxX] += dY_inv * updates[3];
-    }
+        hNetUpdates[(idxY-1)*nX+idxX] += dY_inv * updates[0];
+        hNetUpdates[(idxY)*nX+idxX] += dY_inv * updates[1];
+        huNetUpdates[(idxY-1)*nX+idxX] += dY_inv * updates[2];
+        huNetUpdates[(idxY)*nX+idxX] += dY_inv * updates[3];
+    }*/
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -822,7 +819,7 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
     }
     if (threadIdxLin == 0) {
         float localMaxTimeStep = FLT_MAX;
-        if (localMaxEdgeSpeed[0] > 0) {
+        if (localMaxEdgeSpeed[0] > 0.0001) {
             localMaxTimeStep = fmin(dX / localMaxEdgeSpeed[0], dY / localMaxEdgeSpeed[0]) * 0.4;
         }
         atomicMin(maxTimestep, localMaxTimeStep);

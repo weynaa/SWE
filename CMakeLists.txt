@@ -64,7 +64,7 @@ endif()
 
 if(ENABLE_OPENCL)
     find_package(OpenCL REQUIRED)
-    message(STATUS "Found OpenCL")
+    message(STATUS "Found OpenCL ${OpenCL_VERSION_STRING}")
 endif()
 
 target_sources(swe-single-node 

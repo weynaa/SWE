@@ -72,21 +72,17 @@ void updateUnknowns_opencl(void* buffers[], void* cl_args){
 }
 
 //OpenCL is so barebones, it doesn't even have memset lol
-void cl_memset(cl_kernel kernel, cl_command_queue queue,int devid, cl_mem memory, const float value, const size_t n, cl_event & event){
+void cl_memset(cl_kernel kernel, cl_command_queue queue, cl_mem memory, const float value, const size_t n, cl_event * event = NULL){
     int err = clSetKernelArg(kernel,0,sizeof(cl_mem),&memory);
     err |= clSetKernelArg(kernel,1,sizeof(value),&value);
     err |= clSetKernelArg(kernel,2,sizeof(n),&n);
     if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-    size_t local;
-    cl_device_id device;
-    starpu_opencl_get_device(devid, &device);
-    size_t s;
-    err = clGetKernelWorkGroupInfo (kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local), &local, &s);
+    size_t local =64;
     if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
     size_t global = n;
     adjustGlobalDim(global,local);
-    err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&local,0,NULL,&event);
+    err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&local,0,NULL,event);
     if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 }
 
@@ -99,7 +95,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
     const auto rightGhost =  buffers[1 + BND_RIGHT];
     const auto bottomGhost =  buffers[1 + BND_BOTTOM];
     const auto topGhost =  buffers[1 + BND_TOP];
-    const auto b = (cl_mem) STARPU_MATRIX_GET_PTR(buffers[5]);
+    const auto b = (cl_mem) STARPU_MATRIX_GET_DEV_HANDLE(buffers[5]);
     const auto netUpdates =  buffers[6];
 
     const auto maxTimestep = (cl_mem) STARPU_VARIABLE_GET_PTR(buffers[7]);
@@ -121,9 +117,12 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
     const auto huNetUp = (cl_mem) STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates);
     const auto hvNetUp = (cl_mem) STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates);
 
+    const auto bLD = (unsigned int) STARPU_MATRIX_GET_LD(buffers[5]);
+
     int id, devid, err;                   /* OpenCL specific code */
     cl_command_queue queue;               /* OpenCL specific code */
     cl_event hMemset,huMemset,hvMemset;   /* OpenCL specific code */
+    //cl_event leftUpEv, rightUpEv, botUpEv, topUpEv;
 
     id = starpu_worker_get_id();
     devid = starpu_worker_get_devid(id);
@@ -139,23 +138,28 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
                               "memset", /* Name of the codelet */
                               devid);
 
-    cl_memset(memset_kernel,queue,devid,hNetUp,0,nX*nY,hMemset);
-    cl_memset(memset_kernel,queue,devid,huNetUp,0,nX*nY,huMemset);
-    cl_memset(memset_kernel,queue,devid,hvNetUp,0,nX*nY,hvMemset);
+
+/*    cl_command_queue_properties properties;
+    err = clGetCommandQueueInfo(queue,CL_QUEUE_PROPERTIES,sizeof(properties),(void*)&properties,NULL);
+    if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
+    if((properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)== CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE){
+        printf("out of order is enabled");
+    }*/
+    cl_memset(memset_kernel,queue,hNetUp,0,nX*nY,NULL);
+    cl_memset(memset_kernel,queue,huNetUp,0,nX*nY,NULL);
+    cl_memset(memset_kernel,queue,hvNetUp,0,nX*nY,NULL);
 
     starpu_opencl_release_kernel(memset_kernel);
 
     //Boundary Updates
-    {
+/*    {
         cl_kernel kernel;
         err = starpu_opencl_load_kernel(&kernel,&queue,&opencl_programs,
                                         "computeNumericalFluxes_border_opencl_kernel",
                                         devid);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        size_t workGroupSize;
-        size_t s;
-        err = clGetKernelWorkGroupInfo (kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(workGroupSize), &workGroupSize, &s);
+        size_t workGroupSize = 64;
 
         BoundaryEdge side = BND_LEFT;
         const auto hNeighbour = (cl_mem) STARPU_SWE_HUV_MATRIX_GET_H_PTR(leftGhost);
@@ -168,26 +172,25 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,4,sizeof(cl_mem),&huNeighbour);
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvNeighbour);
         err |= clSetKernelArg(kernel,6,sizeof(cl_mem),&b);
-        err |= clSetKernelArg(kernel,7,sizeof(cl_mem),&maxTimestep);
-        err |= clSetKernelArg(kernel,8,sizeof(cl_mem),&hNetUp);
-        err |= clSetKernelArg(kernel,9,sizeof(cl_mem),&huNetUp);
-        err |= clSetKernelArg(kernel,10,sizeof(cl_mem),&hvNetUp);
-        err |= clSetKernelArg(kernel,11,sizeof(nX),&nX);
-        err |= clSetKernelArg(kernel,12,sizeof(nY),&nY);
-        err |= clSetKernelArg(kernel,13,sizeof(dX_inv),&dX_inv);
-        err |= clSetKernelArg(kernel,14,sizeof(dY_inv),&dY_inv);
-        err |= clSetKernelArg(kernel,15,sizeof(dX),&dX);
-        err |= clSetKernelArg(kernel,16,sizeof(dY),&dY);
-        err |= clSetKernelArg(kernel,17,sizeof(side),&side);
-        err |= clSetKernelArg(kernel,18, sizeof(float)*workGroupSize,NULL);
+        err |= clSetKernelArg(kernel,7,sizeof(bLD),&bLD);
+        err |= clSetKernelArg(kernel,8,sizeof(cl_mem),&maxTimestep);
+        err |= clSetKernelArg(kernel,9,sizeof(cl_mem),&hNetUp);
+        err |= clSetKernelArg(kernel,10,sizeof(cl_mem),&huNetUp);
+        err |= clSetKernelArg(kernel,11,sizeof(cl_mem),&hvNetUp);
+        err |= clSetKernelArg(kernel,12,sizeof(nX),&nX);
+        err |= clSetKernelArg(kernel,13,sizeof(nY),&nY);
+        err |= clSetKernelArg(kernel,14,sizeof(dX_inv),&dX_inv);
+        err |= clSetKernelArg(kernel,15,sizeof(dY_inv),&dY_inv);
+        err |= clSetKernelArg(kernel,16,sizeof(dX),&dX);
+        err |= clSetKernelArg(kernel,17,sizeof(dY),&dY);
+        err |= clSetKernelArg(kernel,18,sizeof(side),&side);
+        err |= clSetKernelArg(kernel,19, sizeof(float)*workGroupSize,NULL);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
         size_t global = nY;
         adjustGlobalDim(global,workGroupSize);
 
-        cl_event dependencies[]={hMemset,huMemset,hvMemset};
-        cl_event leftEvent,rightEvent,topEvent,botEvent;
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,3,dependencies,&leftEvent);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,0,NULL,NULL);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
 
@@ -200,7 +203,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvRightNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&leftEvent,&rightEvent);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,0,NULL,NULL);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
 
@@ -215,7 +218,7 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvTopNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&rightEvent,&botEvent);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,0,NULL,NULL);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
         const auto hBottomNeighbour = (cl_mem) STARPU_SWE_HUV_MATRIX_GET_H_PTR(bottomGhost);
@@ -227,7 +230,42 @@ void computeNumericalFluxes_opencl(void *buffers[], void *cl_args){
         err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&hvBottomNeighbour);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
-        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,1,&botEvent,&topEvent);
+        err = clEnqueueNDRangeKernel(queue,kernel,1,NULL,&global,&workGroupSize,0,NULL,NULL);
+        if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
+
+        starpu_opencl_release_kernel(kernel);
+    }*/
+    {
+        cl_kernel kernel;
+
+        size_t local[]={8,8};
+
+        err = starpu_opencl_load_kernel(&kernel,&queue,&opencl_programs,"computeNumericalFluxes_mainBlock_opencl_kernel",devid);
+        if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
+
+        err |= clSetKernelArg(kernel,0,sizeof(cl_mem),&hMain);
+        err |= clSetKernelArg(kernel,1,sizeof(cl_mem),&huMain);
+        err |= clSetKernelArg(kernel,2,sizeof(cl_mem),&hvMain);
+        err |= clSetKernelArg(kernel,3,sizeof(cl_mem),&b);
+        err |= clSetKernelArg(kernel,4,sizeof(bLD),&bLD);
+        err |= clSetKernelArg(kernel,5,sizeof(cl_mem),&maxTimestep);
+        err |= clSetKernelArg(kernel,6,sizeof(cl_mem),&hNetUp);
+        err |= clSetKernelArg(kernel,7,sizeof(cl_mem),&huNetUp);
+        err |= clSetKernelArg(kernel,8,sizeof(cl_mem),&hvNetUp);
+        err |= clSetKernelArg(kernel,9,sizeof(nX),&nX);
+        err |= clSetKernelArg(kernel,10,sizeof(nY),&nY);
+        err |= clSetKernelArg(kernel,11,sizeof(dX_inv),&dX_inv);
+        err |= clSetKernelArg(kernel,12,sizeof(dY_inv),&dY_inv);
+        err |= clSetKernelArg(kernel,13,sizeof(dX),&dX);
+        err |= clSetKernelArg(kernel,14,sizeof(dY),&dY);
+        err |= clSetKernelArg(kernel,15, sizeof(float)*local[0]*local[1],NULL);
+
+        size_t global[] = {(size_t)nX,(size_t)nY};
+        adjustGlobalDim(global[0],local[0]);
+        adjustGlobalDim(global[1],local[1]);
+        if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
+
+        err = clEnqueueNDRangeKernel(queue,kernel,2,NULL,global,local,0,NULL,NULL);
         if (err != CL_SUCCESS) STARPU_OPENCL_REPORT_ERROR(err);
 
         starpu_opencl_release_kernel(kernel);
