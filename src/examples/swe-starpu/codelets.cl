@@ -2,6 +2,9 @@
 #define real float
 #define integer unsigned int
 
+#define and &&
+#define or ||
+
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 #pragma OPENCL EXTENSION cl_intel_printf : enable
 
@@ -132,18 +135,15 @@ computeMiddleState(
             l_sqrtTermH[0] = sqrt((real)(0.5) * g * ((*o_hMiddle + i_hLeft) / (*o_hMiddle * i_hLeft)));
             l_sqrtTermH[1] = sqrt((real)(0.5) * g * ((*o_hMiddle + i_hRight) / (*o_hMiddle * i_hRight)));
 
-            real phi = i_uRight - i_uLeft + (*o_hMiddle - i_hLeft) * l_sqrtTermH[0] +
-                       (*o_hMiddle - i_hRight) * l_sqrtTermH[1];
+            real phi = i_uRight - i_uLeft + (*o_hMiddle - i_hLeft) * l_sqrtTermH[0] + (*o_hMiddle - i_hRight) * l_sqrtTermH[1];
 
             if (fabs(phi) < newtonTol) {
                 break;
             }
 
             real derivativePhi = l_sqrtTermH[0] + l_sqrtTermH[1]
-                                 - (real)(0.25) * g * (*o_hMiddle - i_hLeft) /
-                                   (l_sqrtTermH[0] * *o_hMiddle * *o_hMiddle)
-                                 - (real)(0.25) * g * (*o_hMiddle - i_hRight) /
-                                   (l_sqrtTermH[1] * *o_hMiddle * *o_hMiddle);
+                                 - (real)(0.25) * g * (*o_hMiddle - i_hLeft) / (l_sqrtTermH[0] * *o_hMiddle * *o_hMiddle)
+                                 - (real)(0.25) * g * (*o_hMiddle - i_hRight) / (l_sqrtTermH[1] * *o_hMiddle * *o_hMiddle);
 
             *o_hMiddle = *o_hMiddle - phi / derivativePhi; //Newton step
         }
@@ -152,14 +152,13 @@ computeMiddleState(
     }
 
     if (riemannStructure == RarefactionRarefaction) {
-        *o_hMiddle = fmax((real)(0),
-                         i_uLeft - i_uRight + (real)(2) * (l_sqrt_g_hLeft + l_sqrt_g_hRight));
+        *o_hMiddle = fmax((real)(0), i_uLeft - i_uRight + (real)(2) * (l_sqrt_g_hLeft + l_sqrt_g_hRight));
         *o_hMiddle = (real)(1) / ((real)(16) * g) * *o_hMiddle * *o_hMiddle;
 
         sqrt_g_hMiddle = sqrt(g * *o_hMiddle);
     }
 
-    if (riemannStructure == ShockRarefaction || riemannStructure == RarefactionShock) {
+    if (riemannStructure == ShockRarefaction or riemannStructure == RarefactionShock) {
         real hMin, hMax;
         if (riemannStructure == ShockRarefaction) {
             hMin = i_hLeft;
@@ -176,15 +175,13 @@ computeMiddleState(
         for (unsigned int i = 0; i < i_maxNumberOfNewtonIterations; i++) {
             real sqrtTermHMin = sqrt((real)(0.5) * g * ((*o_hMiddle + hMin) / (*o_hMiddle * hMin)));
 
-            real phi = i_uRight - i_uLeft + (*o_hMiddle - hMin) * sqrtTermHMin +
-                       (real)(2) * (sqrt_g_hMiddle - sqrt_g_hMax);
+            real phi = i_uRight - i_uLeft + (*o_hMiddle - hMin) * sqrtTermHMin + (real)(2) * (sqrt_g_hMiddle - sqrt_g_hMax);
 
             if (fabs(phi) < newtonTol) {
                 break;
             }
 
-            real derivativePhi = sqrtTermHMin - (real)(0.25) * g * (*o_hMiddle - hMin) /
-                                                (*o_hMiddle * *o_hMiddle * sqrtTermHMin) + sqrt_g / sqrt_g_hMiddle;
+            real derivativePhi = sqrtTermHMin - (real)(0.25) * g * (*o_hMiddle - hMin) / (*o_hMiddle * *o_hMiddle * sqrtTermHMin) + sqrt_g / sqrt_g_hMiddle;
 
             *o_hMiddle = *o_hMiddle - phi / derivativePhi; //Newton step
 
@@ -203,20 +200,16 @@ void waveSolver(
         const float_type i_bLeft, const float_type i_bRight,
         float_type o_netUpdates[5]
 ) {
-    const float_type g = 9.81;
+    const float_type g = 9.81f;
     const float_type dryTol = 0.01;
     const float_type newtonTol = 0.000001;
     const float_type zeroTol = 0.0001;
     const int maxNumberOfNewtonIterations = 10;
 
-    real hLeft = i_hLeft;
-    real hRight = i_hRight;
-    real uLeft = (real)(0);
-    real uRight = (real)(0);
-    real huLeft = i_huLeft;
-    real huRight = i_huRight;
-    real bLeft = i_bLeft;
-    real bRight = i_bRight;
+    real hLeft = i_hLeft;			real hRight = i_hRight;
+    real uLeft = (real)(0);	real uRight = (real)(0);
+    real huLeft = i_huLeft;			real huRight = i_huRight;
+    real bLeft = i_bLeft;			real bRight = i_bRight;
 
     //declare variables which are used over and over again
     const real sqrt_g = sqrt(g);
@@ -234,14 +227,14 @@ void waveSolver(
     o_netUpdates[4] = (real)(0);
 
     real hMiddle = (real)(0);
-    real middleStateSpeeds[2] = {(real)(0)};
+    real middleStateSpeeds[2] = { (real)(0) };
 
     //determine the wet/dry state and compute local variables correspondingly
 
 /***************************************************************************************
  * Determine Wet Dry State Begin
  **************************************************************************************/
-    integer wetDryState = WetWet;
+    integer wetDryState;
     //compute speeds or set them to zero (dry cells)
     if (hLeft > dryTol) {
         uLeft = huLeft / hLeft;
@@ -257,20 +250,20 @@ void waveSolver(
         hRight = huRight = uRight = 0;
     }
 
-    if (hLeft >= dryTol && hRight >= dryTol) {
+    if (hLeft >= dryTol and hRight >= dryTol) {
         //test for simple wet/wet case since this is most probably the
         //most frequently executed branch
         wetDryState = WetWet;
-    } else if (hLeft < dryTol && hRight < dryTol) {
+    } else if (hLeft < dryTol and hRight < dryTol) {
         //check for the dry/dry-case
         wetDryState = DryDry;
-    } else if (hLeft < dryTol && hRight + bRight > bLeft) {
+    } else if (hLeft < dryTol and hRight + bRight > bLeft) {
         //we have a shoreline: one cell dry, one cell wet
 
         //check for simple inundation problems
         // (=> dry cell lies lower than the wet cell)
         wetDryState = DryWetInundation;
-    } else if (hRight < dryTol && hLeft + bLeft > bRight) {
+    } else if (hRight < dryTol and hLeft + bLeft > bRight) {
         wetDryState = WetDryInundation;
     } else if (hLeft < dryTol) {
         //dry cell lies higher than the wet cell
@@ -347,8 +340,8 @@ void waveSolver(
         sqrt_hLeft = sqrt(hLeft);
         sqrt_hRight = sqrt(hRight);
 
-        sqrt_g_hLeft = sqrt_g * sqrt_hLeft;
-        sqrt_g_hRight = sqrt_g * sqrt_hRight;
+        sqrt_g_hLeft = sqrt_g*sqrt_hLeft;
+        sqrt_g_hRight = sqrt_g*sqrt_hRight;
 
 
         //where to store the three waves
@@ -379,7 +372,7 @@ void waveSolver(
         };
 
         //compute the middle state of the homogeneous Riemann-Problem
-        if (wetDryState != WetDryWall && wetDryState != DryWetWall) {
+        if (wetDryState != WetDryWall and wetDryState != DryWetWall) {
             //case WDW and DWW was computed in determineWetDryState already
             computeMiddleState(
                     hLeft, hRight,
@@ -393,7 +386,7 @@ void waveSolver(
         //compute extended eindfeldt speeds (einfeldt speeds + middle state speeds)
         //  \cite[ch. 5.2]{george2008augmented}, \cite[ch. 6.8]{george2006finite}
         real extEinfeldtSpeeds[2] = {(real)(0), (real)(0)};
-        if (wetDryState == WetWet || wetDryState == WetDryWall || wetDryState == DryWetWall) {
+        if (wetDryState == WetWet or wetDryState == WetDryWall or wetDryState == DryWetWall) {
             extEinfeldtSpeeds[0] = fmin(characteristicSpeeds[0], roeSpeeds[0]);
             extEinfeldtSpeeds[0] = fmin(extEinfeldtSpeeds[0], middleStateSpeeds[1]);
 
@@ -404,18 +397,20 @@ void waveSolver(
             extEinfeldtSpeeds[0] = fmin(roeSpeeds[0], middleStateSpeeds[1]);
             extEinfeldtSpeeds[1] = fmax(characteristicSpeeds[1], roeSpeeds[1]);
 
+            //assert(middleStateSpeeds[0] < extEinfeldtSpeeds[1]);
         } else if (hRight < dryTol) {
             //ignore undefined speeds
             extEinfeldtSpeeds[0] = fmin(characteristicSpeeds[0], roeSpeeds[0]);
             extEinfeldtSpeeds[1] = fmax(roeSpeeds[1], middleStateSpeeds[0]);
 
+            //assert(middleStateSpeeds[1] > extEinfeldtSpeeds[0]);
         } else {
             //assert(false);
         }
 
         //HLL middle state
         //  \cite[theorem 3.1]{george2006finite}, \cite[ch. 4.1]{george2008augmented}
-        const real hLLMiddleHeight = fmax((huLeft - huRight + extEinfeldtSpeeds[1] * hRight - extEinfeldtSpeeds[0] * hLeft) / (extEinfeldtSpeeds[1] - extEinfeldtSpeeds[0]), (real)(0.f));
+        const real hLLMiddleHeight = fmax((huLeft - huRight + extEinfeldtSpeeds[1] * hRight - extEinfeldtSpeeds[0] * hLeft) / (extEinfeldtSpeeds[1] - extEinfeldtSpeeds[0]), (real)(0));
 
         //define eigenvalues
         const real eigenValues[3] = {
@@ -445,7 +440,6 @@ void waveSolver(
 
         //compute rarefaction corrector wave
         //  \cite[ch. 6.7.2]{george2006finite}, \cite[ch. 5.1]{george2008augmented}
-
         //compute the jump in state
         real rightHandSide[3] = {
                 hRight - hLeft,
@@ -464,7 +458,7 @@ void waveSolver(
 
         //preserve depth-positivity
         //  \cite[ch. 6.5.2]{george2006finite}, \cite[ch. 4.2.3]{george2008augmented}
-        if (eigenValues[0] < -zeroTol && eigenValues[2] > zeroTol) {
+        if (eigenValues[0] < -zeroTol and eigenValues[2] > zeroTol) {
             //subsonic
             steadyStateWave[0] = fmax(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[0]);
             steadyStateWave[0] = fmin(steadyStateWave[0], hLLMiddleHeight * (eigenValues[2] - eigenValues[0]) / eigenValues[2]);
@@ -538,6 +532,7 @@ void waveSolver(
             waveSpeeds[0] = eigenValues[0];
             waveSpeeds[1] = waveSpeeds[2] = (real)(0);
 
+            //assert(eigenValues[0] < zeroTol);
         } else if (wetDryState == DryWetWall) {
             //zero ghost updates (wall boundary)
             //care about the right going wave (2) only
@@ -551,12 +546,12 @@ void waveSolver(
             waveSpeeds[2] = eigenValues[2];
             waveSpeeds[0] = waveSpeeds[1] = (real)(0);
 
+            //assert(eigenValues[2] > -zeroTol);
         } else {
             //compute f-waves (default)
             for (int waveNumber = 0; waveNumber < 3; waveNumber++) {
                 fWaves[waveNumber][0] = beta[waveNumber] * eigenVectors[1][waveNumber]; //select 2nd and
-                fWaves[waveNumber][1] =
-                        beta[waveNumber] * eigenVectors[2][waveNumber]; //3rd component of the augmented decomposition
+                fWaves[waveNumber][1] = beta[waveNumber] * eigenVectors[2][waveNumber]; //3rd component of the augmented decomposition
             }
 
             waveSpeeds[0] = eigenValues[0];
@@ -759,17 +754,21 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
     const unsigned int threadIdxLin = get_local_id(1)*get_local_size(0)+get_local_id(0);
     localMaxEdgeSpeed[threadIdxLin] = 0;
 
+    const unsigned int ld = nX;
+
     if (idxX > 0 && idxX < nX && idxY < nY) {
 
         float_type updates[5];
-
-        float_type hLeft = hMain[idxY*nX+idxX - 1];
-        float_type hRight = hMain[idxY*nX+idxX];
-        float_type huLeft = huMain[idxY*nX+idxX - 1];
-        float_type huRight = huMain[idxY*nX+idxX];
+        const unsigned int lIdx =idxY*ld+idxX-1;
+        const unsigned int rIdx =idxY*ld+idxX;
+        float_type hLeft = hMain[lIdx];
+        float_type hRight = hMain[rIdx];
+        float_type huLeft = huMain[lIdx];
+        float_type huRight = huMain[rIdx];
 
         float_type bLeft = b[(idxY + 1) * bLD + idxX];
         float_type bRight = b[(idxY + 1) * bLD + idxX + 1];
+
         waveSolver(
                 hLeft, hRight,
                 huLeft, huRight,
@@ -778,18 +777,20 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         );
         localMaxEdgeSpeed[threadIdxLin] = fmax(localMaxEdgeSpeed[threadIdxLin], updates[4]);
 
-        hNetUpdates[idxY*nX+idxX-1] += dX_inv * updates[0];
-        hNetUpdates[idxY*nX+idxX] += dX_inv * updates[1];
-        huNetUpdates[idxY*nX+idxX-1] += dX_inv * updates[2];
-        huNetUpdates[idxY*nX+idxX] += dX_inv * updates[3];
+        hNetUpdates[lIdx] += dX_inv * updates[0];
+        hNetUpdates[rIdx] += dX_inv * updates[1];
+        huNetUpdates[lIdx] += dX_inv * updates[2];
+        huNetUpdates[rIdx] += dX_inv * updates[3];
     }
-    /*if (idxX < nX &&idxY>0&& idxY < nY) {
+    if (idxX < nX && idxY < nY-1) {
         float_type updates[5];
 
-        float_type hUpper = hMain[(idxY-1)*nX+idxX];
-        float_type hLower = hMain[idxY*nX+idxX];
-        float_type hvUpper = hvMain[(idxY-1)*nX+idxX];
-        float_type hvLower = hvMain[idxY*nX+idxX];
+        const unsigned int uIdx = (idxY)*ld+idxX;
+        const unsigned int bIdx = (idxY+1)*ld+idxX;
+        float_type hUpper = hMain[uIdx];
+        float_type hLower = hMain[bIdx];
+        float_type hvUpper = hvMain[uIdx];
+        float_type hvLower = hvMain[bIdx];
 
         float_type bUpper = b[(idxY ) * bLD + idxX+1];
         float_type bLower = b[(idxY + 1) * bLD + idxX + 1];
@@ -801,11 +802,11 @@ __kernel void computeNumericalFluxes_mainBlock_opencl_kernel(
         );
         localMaxEdgeSpeed[threadIdxLin] = fmax(localMaxEdgeSpeed[threadIdxLin], updates[4]);
 
-        hNetUpdates[(idxY-1)*nX+idxX] += dY_inv * updates[0];
-        hNetUpdates[(idxY)*nX+idxX] += dY_inv * updates[1];
-        huNetUpdates[(idxY-1)*nX+idxX] += dY_inv * updates[2];
-        huNetUpdates[(idxY)*nX+idxX] += dY_inv * updates[3];
-    }*/
+        hNetUpdates[uIdx] += dY_inv * updates[0];
+        hNetUpdates[bIdx] += dY_inv * updates[1];
+        huNetUpdates[uIdx] += dY_inv * updates[2];
+        huNetUpdates[bIdx] += dY_inv * updates[3];
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
