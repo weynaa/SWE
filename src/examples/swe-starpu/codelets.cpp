@@ -138,6 +138,7 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     codelet.modes[0] = STARPU_W;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
+    codelet.name="updateGhostLayers";
     return codelet;
 }();
 
@@ -162,6 +163,7 @@ starpu_codelet SWECodelets::resultWriter = []()noexcept {
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
+    codelet.name="resultWriter";
     return codelet;
 }();
 
@@ -405,7 +407,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     codelet.opencl_funcs[0] = &computeNumericalFluxes_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
-
+    codelet.name="computeNumericalFluxes";
     codelet.nbuffers = 8;
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
@@ -440,6 +442,7 @@ starpu_codelet SWECodelets::variableMin = []()noexcept {
     codelet.opencl_funcs[0] = &variableMin_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
+    codelet.name="variableMin";
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
@@ -465,7 +468,7 @@ starpu_codelet SWECodelets::variableSetInf = []()noexcept {
     codelet.opencl_funcs[0] = &variableSetInf_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
-
+    codelet.name="variableSetInf";
     codelet.nbuffers = 1;
     codelet.modes[0] = STARPU_W;
     return codelet;
@@ -517,6 +520,7 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
     //codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
     codelet.nbuffers = 3;
+    codelet.name="updateUnknowns";
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
@@ -534,10 +538,6 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     *currentTime += *timestep;
     std::cout << "t: "<<*currentTime << '\n';
     if (*nextTimestampToWrite <= *currentTime) {
-        static size_t c = 0;
-        if(c++ >3){
-            return;
-        }
 
         pSim->writeTimeStep();
         auto findIt = std::find_if(checkpoints->cbegin(), checkpoints->cend(),
@@ -558,6 +558,7 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
 starpu_codelet SWECodelets::incrementTime = []() {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
+    codelet.name="incrementTime";
     codelet.cpu_funcs[0] = &incrementTime_cpu;
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_RW;
