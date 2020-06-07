@@ -8,7 +8,7 @@
 #include "codelets.h"
 #include <tools/help.hh>
 
-constexpr int nLayers = 2;
+constexpr int nLayers = 3;
 
 struct SWE_StarPU_Sim {
     const size_t nX;
@@ -20,9 +20,9 @@ struct SWE_StarPU_Sim {
 
 
 private:
-    //Layer, X, Y 3D array. Layer is used to have inter-timestep parallelism
-    std::vector<std::vector<SWE_StarPU_Block>> blocks;
-    std::vector<std::vector<starpu_data_handle_t>> scratchData;
+    //Layer, X, Y 3D array. Layer is used to have some inter-timestep parallelism
+    std::array<std::vector<std::vector<SWE_StarPU_Block>>,nLayers> blocks;
+    std::array<std::vector<std::vector<starpu_data_handle_t>>,nLayers> scratchData;
     std::vector<std::vector<io::StarPUBlockWriter>> writers;
 
 
@@ -65,71 +65,75 @@ public:
                                       0, sizeof(float));
         starpu_data_set_reduction_methods(spu_maxTimestep, &SWECodelets::variableMin,
                                           &SWECodelets::variableSetInf);
-        for (size_t x = 0; x < nBlocksX; ++x) {
-            blocks.emplace_back();
-            auto &row = blocks.back();
-            writers.emplace_back();
-            auto &writerRow = writers.back();
-            scratchData.emplace_back();
-            auto &scratchRow = scratchData.back();
-            for (size_t y = 0; y < nBlocksY; ++y) {
-                const auto blockNx = x == nBlocksX - 1 ? nX - x * (nX / nBlocksX) : nX / nBlocksX;
-                const auto blockNy = y == nBlocksY - 1 ? nY - y * (nY / nBlocksY) : nY / nBlocksY;
-                row.emplace_back(
-                        (int) blockNx,
-                        (int) blockNy,
-                        (float) dX,
-                        (float) dY
-                );
+        for(size_t layer = 0; layer < blocks.size();++layer) {
+            auto & blk = blocks[layer];
+            auto & scratch = scratchData[layer];
+            for (size_t x = 0; x < nBlocksX; ++x) {
+                blk.emplace_back();
+                auto &row = blk.back();
+                if(layer == 0) {
+                    writers.emplace_back();
+                }
+                auto &writerRow = writers.back();
+                scratch.emplace_back();
+                auto &scratchRow = scratch.back();
+                for (size_t y = 0; y < nBlocksY; ++y) {
+                    const auto blockNx = x == nBlocksX - 1 ? nX - x * (nX / nBlocksX) : nX / nBlocksX;
+                    const auto blockNy = y == nBlocksY - 1 ? nY - y * (nY / nBlocksY) : nY / nBlocksY;
+                    row.emplace_back(
+                            (int) blockNx,
+                            (int) blockNy,
+                            (float) dX,
+                            (float) dY
+                    );
 
-                const auto offsetX = (boundsWidth/nBlocksX) * x;
-                const auto offsetY = (boundsHeight/nBlocksY) * y;
-                row.back().initScenario(offsetX, offsetY,scenario,
-                        true);
-                row.back().register_starpu();
-                writerRow.emplace_back(
-                        generateBaseFileName(filename, (int) x, (int) y),
-                        blockNx,
-                        blockNy,
-                        dX, dY,
-                        offsetX,
-                        offsetY,
-                        0
-                );
-                scratchRow.push_back(nullptr);
-                starpu_swe_huv_matrix_register(&scratchRow.back(), -1,
-                                               0, 0, 0, blockNx, blockNx, blockNy);
+                    const auto offsetX = (boundsWidth / nBlocksX) * x;
+                    const auto offsetY = (boundsHeight / nBlocksY) * y;
+                    row.back().initScenario(offsetX, offsetY, scenario,
+                                            true);
+                    row.back().register_starpu();
+                    if(layer == 0) {
+                        writerRow.emplace_back(
+                                generateBaseFileName(filename, (int) x, (int) y),
+                                blockNx,
+                                blockNy,
+                                dX, dY,
+                                offsetX,
+                                offsetY,
+                                0
+                        );
+                    }
+                    scratchRow.push_back(nullptr);
+                    starpu_swe_huv_matrix_register(&scratchRow.back(), -1,
+                                                   0, 0, 0, blockNx, blockNx, blockNy);
+                }
             }
-        }
-        for (size_t x = 0; x < nBlocksX; ++x) {
-            for (size_t y = 0; y < nBlocksY; ++y) {
-                if (x != 0) {
-                    blocks[x][y].neighbours[BND_LEFT] = &blocks[x - 1][y];
-                    blocks[x][y].boundary[BND_LEFT] = BoundaryType::CONNECT;
-                }
-                else{
-                    blocks[x][y].setBoundaryType(BND_LEFT,scenario.getBoundaryType(BND_LEFT));
-                }
-                if (x != nBlocksX - 1) {
-                    blocks[x][y].neighbours[BND_RIGHT] = &blocks[x + 1][y];
-                    blocks[x][y].boundary[BND_RIGHT] = BoundaryType::CONNECT;
-                }
-                else{
-                    blocks[x][y].setBoundaryType(BND_RIGHT,scenario.getBoundaryType(BND_RIGHT));
-                }
-                if (y != 0) {
-                    blocks[x][y].neighbours[BND_TOP] = &blocks[x][y - 1];
-                    blocks[x][y].boundary[BND_TOP] = BoundaryType::CONNECT;
-                }
-                else{
-                    blocks[x][y].setBoundaryType(BND_TOP,scenario.getBoundaryType(BND_TOP));
-                }
-                if (y != nBlocksY - 1) {
-                    blocks[x][y].neighbours[BND_BOTTOM] = &blocks[x][y + 1];
-                    blocks[x][y].boundary[BND_BOTTOM] = BoundaryType::CONNECT;
-                }
-                else{
-                    blocks[x][y].setBoundaryType(BND_BOTTOM,scenario.getBoundaryType(BND_BOTTOM));
+            for (size_t x = 0; x < nBlocksX; ++x) {
+                for (size_t y = 0; y < nBlocksY; ++y) {
+                    if (x != 0) {
+                        blk[x][y].neighbours[BND_LEFT] = &blk[x - 1][y];
+                        blk[x][y].boundary[BND_LEFT] = BoundaryType::CONNECT;
+                    } else {
+                        blk[x][y].setBoundaryType(BND_LEFT, scenario.getBoundaryType(BND_LEFT));
+                    }
+                    if (x != nBlocksX - 1) {
+                        blk[x][y].neighbours[BND_RIGHT] = &blk[x + 1][y];
+                        blk[x][y].boundary[BND_RIGHT] = BoundaryType::CONNECT;
+                    } else {
+                        blk[x][y].setBoundaryType(BND_RIGHT, scenario.getBoundaryType(BND_RIGHT));
+                    }
+                    if (y != 0) {
+                        blk[x][y].neighbours[BND_TOP] = &blk[x][y - 1];
+                        blk[x][y].boundary[BND_TOP] = BoundaryType::CONNECT;
+                    } else {
+                        blk[x][y].setBoundaryType(BND_TOP, scenario.getBoundaryType(BND_TOP));
+                    }
+                    if (y != nBlocksY - 1) {
+                        blk[x][y].neighbours[BND_BOTTOM] = &blk[x][y + 1];
+                        blk[x][y].boundary[BND_BOTTOM] = BoundaryType::CONNECT;
+                    } else {
+                        blk[x][y].setBoundaryType(BND_BOTTOM, scenario.getBoundaryType(BND_BOTTOM));
+                    }
                 }
             }
         }
@@ -140,28 +144,34 @@ public:
         starpu_data_unregister(spu_timestamp);
         starpu_data_unregister(spu_nextTimestampToWrite);
         starpu_data_unregister(spu_maxTimestep);
-        for (size_t x = 0; x < scratchData.size(); ++x) {
-            for (size_t y = 0; y < scratchData[x].size(); ++y) {
-                starpu_data_unregister(scratchData[x][y]);
-                blocks[x][y].starpu_unregister();
+        for(size_t layer = 0; layer < nLayers;++layer) {
+            for (size_t x = 0; x < scratchData.size(); ++x) {
+                for (size_t y = 0; y < scratchData[x].size(); ++y) {
+                    starpu_data_unregister(scratchData[layer][x][y]);
+                    blocks[layer][x][y].starpu_unregister();
+                }
             }
+            scratchData[layer].clear();
         }
-        scratchData.clear();
     }
 
     void launchTaskGraph() {
         writeTimeStep();
-        runTimestep();
+        //Kickoff layer tasks
+        for(int i = 0; i < blocks.size();++i) {
+            runTimestep();
+        }
     }
 
     void writeTimeStep() {
+        const auto layer = iterationNumber%nLayers;
         for (size_t x = 0; x < writers.size(); ++x) {
             for (size_t y = 0; y < writers[x].size(); ++y) {
                 const auto pWriters = &writers[x][y];
                 starpu_task_insert(&SWECodelets::resultWriter,
                                    STARPU_VALUE, &pWriters, sizeof(pWriters),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].bStarpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].bStarpuHandle(),
                                    STARPU_R, spu_timestamp,
                                    0);
             }
@@ -169,6 +179,7 @@ public:
     }
 
     void updateGhostLayers() {
+        const auto layer = iterationNumber%nLayers;
         for (size_t x = 0; x < blocks.size(); ++x) {
             for (size_t y = 0; y < blocks[x].size(); ++y) {
                 auto side = BND_LEFT;
@@ -177,51 +188,52 @@ public:
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].neighbours[side]?blocks[x][y].neighbours[side]->huvData().starpuHandle():blocks[x][y].huvData().starpuHandle(),
+                                   STARPU_W, blocks[layer][x][y].boundaryData[side].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].neighbours[side]?blocks[layer][x][y].neighbours[side]->huvData().starpuHandle():blocks[layer][x][y].huvData().starpuHandle(),
                                    0);
                 side = BND_RIGHT;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].neighbours[side]?blocks[x][y].neighbours[side]->huvData().starpuHandle():blocks[x][y].huvData().starpuHandle(),
+                                   STARPU_W, blocks[layer][x][y].boundaryData[side].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].neighbours[side]?blocks[layer][x][y].neighbours[side]->huvData().starpuHandle():blocks[layer][x][y].huvData().starpuHandle(),
                                    0);
                 side = BND_BOTTOM;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].neighbours[side]?blocks[x][y].neighbours[side]->huvData().starpuHandle():blocks[x][y].huvData().starpuHandle(),
+                                   STARPU_W, blocks[layer][x][y].boundaryData[side].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].neighbours[side]?blocks[layer][x][y].neighbours[side]->huvData().starpuHandle():blocks[layer][x][y].huvData().starpuHandle(),
                                    0);
                 side = BND_TOP;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].neighbours[side]?blocks[x][y].neighbours[side]->huvData().starpuHandle():blocks[x][y].huvData().starpuHandle(),
+                                   STARPU_W, blocks[layer][x][y].boundaryData[side].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].neighbours[side]?blocks[layer][x][y].neighbours[side]->huvData().starpuHandle():blocks[layer][x][y].huvData().starpuHandle(),
                                    0);
             }
         }
     }
 
     void computeNumericalFluxes() {
+        const auto layer = iterationNumber%nLayers;
         for (size_t x = 0; x < blocks.size(); ++x) {
             for (size_t y = 0; y < blocks[x].size(); ++y) {
-                const auto blockptr = &blocks[x][y];
+                const auto blockptr = &blocks[layer][x][y];
                 starpu_task_insert(&SWECodelets::computeNumericalFluxes,
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_R, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, blocks[x][y].boundaryData[BND_LEFT].starpuHandle(),
-                                   STARPU_R, blocks[x][y].boundaryData[BND_RIGHT].starpuHandle(),
-                                   STARPU_R, blocks[x][y].boundaryData[BND_BOTTOM].starpuHandle(),
-                                   STARPU_R, blocks[x][y].boundaryData[BND_TOP].starpuHandle(),
-                                   STARPU_R, blocks[x][y].bStarpuHandle(),
-                                   STARPU_W, scratchData[x][y],
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].boundaryData[BND_LEFT].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].boundaryData[BND_RIGHT].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].boundaryData[BND_BOTTOM].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].boundaryData[BND_TOP].starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].bStarpuHandle(),
+                                   STARPU_W, scratchData[layer][x][y],
                                    STARPU_REDUX, spu_maxTimestep,
                                    0);
             }
@@ -229,13 +241,14 @@ public:
     }
 
     void updateUnkowns() {
+        const auto layer = iterationNumber%nLayers;
         for (size_t x = 0; x < blocks.size(); ++x) {
             for (size_t y = 0; y < blocks[x].size(); ++y) {
-                const auto blockptr = &blocks[x][y];
+                const auto blockptr = &blocks[layer][x][y];
                 starpu_task_insert(&SWECodelets::updateUnknowns,
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_RW, blocks[x][y].huvData().starpuHandle(),
-                                   STARPU_R, scratchData[x][y],
+                                   STARPU_RW, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, scratchData[layer][x][y],
                                    STARPU_R, spu_maxTimestep,
                                    0);
             }

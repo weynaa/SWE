@@ -536,7 +536,6 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     std::vector<float> *checkpoints;
     starpu_codelet_unpack_args(cl_args, &pSim, &checkpoints);
     *currentTime += *timestep;
-    std::cout << "t: "<<*currentTime << '\n';
     if (*nextTimestampToWrite <= *currentTime) {
 
         pSim->writeTimeStep();
@@ -546,6 +545,7 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
                                    });
         if (findIt == checkpoints->cend()) {
             //We are done, we are at the last time-step to write
+            *nextTimestampToWrite = std::numeric_limits<float>::infinity();
             return;
         }
         //continue
