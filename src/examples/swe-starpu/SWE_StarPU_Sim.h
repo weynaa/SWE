@@ -8,7 +8,7 @@
 #include "codelets.h"
 #include <tools/help.hh>
 
-constexpr int nLayers = 3;
+constexpr int nLayers = 2;
 
 struct SWE_StarPU_Sim {
     const size_t nX;
@@ -32,7 +32,8 @@ private:
     starpu_data_handle_t spu_nextTimestampToWrite;
     std::atomic<int> iterationNumber = {0};
 
-    starpu_data_handle_t spu_maxTimestep;
+
+    std::array<starpu_data_handle_t,nLayers> spu_maxTimestep;
 
     std::vector<float> l_checkPoints;
 
@@ -61,11 +62,12 @@ public:
                                       (uintptr_t) &timestamp, sizeof(timestamp));
         starpu_variable_data_register(&spu_nextTimestampToWrite, STARPU_MAIN_RAM,
                                       (uintptr_t) &nextTimestampToWrite, sizeof(nextTimestampToWrite));
-        starpu_variable_data_register(&spu_maxTimestep, -1,
-                                      0, sizeof(float));
-        starpu_data_set_reduction_methods(spu_maxTimestep, &SWECodelets::variableMin,
-                                          &SWECodelets::variableSetInf);
+
         for(size_t layer = 0; layer < blocks.size();++layer) {
+            starpu_variable_data_register(&spu_maxTimestep[layer], -1,
+                                          0, sizeof(float));
+            starpu_data_set_reduction_methods(spu_maxTimestep[layer], &SWECodelets::variableMin,
+                                              &SWECodelets::variableSetInf);
             auto & blk = blocks[layer];
             auto & scratch = scratchData[layer];
             for (size_t x = 0; x < nBlocksX; ++x) {
@@ -143,8 +145,8 @@ public:
     ~SWE_StarPU_Sim() {
         starpu_data_unregister(spu_timestamp);
         starpu_data_unregister(spu_nextTimestampToWrite);
-        starpu_data_unregister(spu_maxTimestep);
         for(size_t layer = 0; layer < nLayers;++layer) {
+            starpu_data_unregister(spu_maxTimestep[layer]);
             for (size_t x = 0; x < scratchData.size(); ++x) {
                 for (size_t y = 0; y < scratchData[x].size(); ++y) {
                     starpu_data_unregister(scratchData[layer][x][y]);
@@ -157,8 +159,8 @@ public:
 
     void launchTaskGraph() {
         writeTimeStep();
-        //Kickoff layer tasks
-        for(int i = 0; i < blocks.size();++i) {
+        //start layer tasks
+        for(size_t i = 0; i < blocks.size();++i) {
             runTimestep();
         }
     }
@@ -179,7 +181,8 @@ public:
     }
 
     void updateGhostLayers() {
-        const auto layer = iterationNumber%nLayers;
+        const auto iterationId = iterationNumber.load();
+        const auto layer = iterationId%nLayers;
         for (size_t x = 0; x < blocks.size(); ++x) {
             for (size_t y = 0; y < blocks[x].size(); ++y) {
                 auto side = BND_LEFT;
@@ -234,22 +237,25 @@ public:
                                    STARPU_R, blocks[layer][x][y].boundaryData[BND_TOP].starpuHandle(),
                                    STARPU_R, blocks[layer][x][y].bStarpuHandle(),
                                    STARPU_W, scratchData[layer][x][y],
-                                   STARPU_REDUX, spu_maxTimestep,
+                                   STARPU_REDUX, spu_maxTimestep[layer],
                                    0);
             }
         }
     }
 
     void updateUnkowns() {
-        const auto layer = iterationNumber%nLayers;
+        const auto it = iterationNumber.load();
+        const auto layer = it%nLayers;
+        const auto nextLayer = (it+1)%nLayers;
         for (size_t x = 0; x < blocks.size(); ++x) {
             for (size_t y = 0; y < blocks[x].size(); ++y) {
                 const auto blockptr = &blocks[layer][x][y];
                 starpu_task_insert(&SWECodelets::updateUnknowns,
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
-                                   STARPU_RW, blocks[layer][x][y].huvData().starpuHandle(),
+                                   STARPU_R, blocks[layer][x][y].huvData().starpuHandle(),
                                    STARPU_R, scratchData[layer][x][y],
-                                   STARPU_R, spu_maxTimestep,
+                                   STARPU_R, spu_maxTimestep[layer],
+                                   STARPU_W, blocks[nextLayer][x][y].huvData().starpuHandle(),
                                    0);
             }
         }
@@ -261,13 +267,14 @@ public:
         computeNumericalFluxes();
         updateUnkowns();
 
+        const auto layer = (iterationNumber)%nLayers;
         const auto pSim = this;
         const auto pCheckpoints = &l_checkPoints;
         starpu_task_insert(&SWECodelets::incrementTime,
                            STARPU_VALUE, &pSim, sizeof(pSim),
                            STARPU_VALUE, &pCheckpoints, sizeof(pCheckpoints),
                            STARPU_RW, spu_timestamp,
-                           STARPU_R, spu_maxTimestep,
+                           STARPU_R, spu_maxTimestep[layer],
                            STARPU_RW, spu_nextTimestampToWrite,
                            0);
         starpu_iteration_pop();

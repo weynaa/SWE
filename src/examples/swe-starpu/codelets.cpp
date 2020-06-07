@@ -8,7 +8,9 @@
 #include <limits>
 
 #ifdef ENABLE_CUDA
+
 #include "codelets.cuh"
+
 #endif
 #ifdef ENABLE_OPENCL
 #include "codelets_cl.h"
@@ -138,7 +140,7 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     codelet.modes[0] = STARPU_W;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
-    codelet.name="updateGhostLayers";
+    codelet.name = "updateGhostLayers";
     return codelet;
 }();
 
@@ -163,7 +165,7 @@ starpu_codelet SWECodelets::resultWriter = []()noexcept {
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
-    codelet.name="resultWriter";
+    codelet.name = "resultWriter";
     return codelet;
 }();
 
@@ -407,7 +409,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     codelet.opencl_funcs[0] = &computeNumericalFluxes_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
-    codelet.name="computeNumericalFluxes";
+    codelet.name = "computeNumericalFluxes";
     codelet.nbuffers = 8;
     codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
@@ -442,7 +444,7 @@ starpu_codelet SWECodelets::variableMin = []()noexcept {
     codelet.opencl_funcs[0] = &variableMin_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
-    codelet.name="variableMin";
+    codelet.name = "variableMin";
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
@@ -468,7 +470,7 @@ starpu_codelet SWECodelets::variableSetInf = []()noexcept {
     codelet.opencl_funcs[0] = &variableSetInf_opencl;
     codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
 #endif
-    codelet.name="variableSetInf";
+    codelet.name = "variableSetInf";
     codelet.nbuffers = 1;
     codelet.modes[0] = STARPU_W;
     return codelet;
@@ -479,24 +481,28 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
     const SWE_StarPU_Block *pBlock;
     starpu_codelet_unpack_args(cl_args, &pBlock);
 
-    const auto myBlock = buffers[0];
+    const auto srcBlock = buffers[0];
+    const auto dstBlock = buffers[3];
     const auto updates = buffers[1];
     const auto dt = (const float *) STARPU_VARIABLE_GET_PTR(buffers[2]);
 
-    const auto nX = STARPU_SWE_HUV_MATRIX_GET_NX(myBlock);
-    const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(myBlock);
+    const auto nX = STARPU_SWE_HUV_MATRIX_GET_NX(srcBlock);
+    const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(srcBlock);
 
     for (size_t y = 0; y < nY; ++y) {
 #pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
-            STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates, x, y);
-            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
-            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) -= *dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates, x, y);
+            STARPU_SWE_HUV_MATRIX_GET_H_VAL(dstBlock, x, y) = STARPU_SWE_HUV_MATRIX_GET_H_VAL(srcBlock, x, y) -
+                                                              *dt * STARPU_SWE_HUV_MATRIX_GET_H_VAL(updates, x, y);
+            STARPU_SWE_HUV_MATRIX_GET_HU_VAL(dstBlock, x, y) = STARPU_SWE_HUV_MATRIX_GET_H_VAL(srcBlock, x, y) -
+                                                               *dt * STARPU_SWE_HUV_MATRIX_GET_HU_VAL(updates, x, y);
+            STARPU_SWE_HUV_MATRIX_GET_HV_VAL(dstBlock, x, y) = STARPU_SWE_HUV_MATRIX_GET_H_VAL(srcBlock, x, y) -
+                                                               *dt * STARPU_SWE_HUV_MATRIX_GET_HV_VAL(updates, x, y);
 
-            if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) < SWECodelets::DRY_LIMIT) {
-                STARPU_SWE_HUV_MATRIX_GET_H_VAL(myBlock, x, y) =
-                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(myBlock, x, y) =
-                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(myBlock, x, y) = 0;
+            if (STARPU_SWE_HUV_MATRIX_GET_H_VAL(dstBlock, x, y) < SWECodelets::DRY_LIMIT) {
+                STARPU_SWE_HUV_MATRIX_GET_H_VAL(dstBlock, x, y) =
+                STARPU_SWE_HUV_MATRIX_GET_HU_VAL(dstBlock, x, y) =
+                STARPU_SWE_HUV_MATRIX_GET_HV_VAL(dstBlock, x, y) = 0;
             }
 
         }
@@ -510,20 +516,21 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
     codelet.cpu_funcs[0] = &updateUnkowns_cpu;
 #endif
 #ifdef ENABLE_CUDA
-    codelet.where |= STARPU_CUDA;
+/*    codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateUnknowns_cuda;
-    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;
+    codelet.cuda_flags[0] = STARPU_CUDA_ASYNC;*/
 #endif
-#ifdef ENABLE_OPENCL
+/*#ifdef ENABLE_OPENCL
     codelet.where |= STARPU_OPENCL;
     codelet.opencl_funcs[0] = &updateUnknowns_opencl;
     //codelet.opencl_flags[0] = STARPU_OPENCL_ASYNC;
-#endif
-    codelet.nbuffers = 3;
-    codelet.name="updateUnknowns";
-    codelet.modes[0] = STARPU_RW;
+#endif*/
+    codelet.nbuffers = 4;
+    codelet.name = "updateUnknowns";
+    codelet.modes[0] = STARPU_R;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
+    codelet.modes[3] = STARPU_W;
     return codelet;
 }();
 
@@ -536,6 +543,9 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     std::vector<float> *checkpoints;
     starpu_codelet_unpack_args(cl_args, &pSim, &checkpoints);
     *currentTime += *timestep;
+    if (*nextTimestampToWrite == std::numeric_limits<float>::infinity()) {
+        return;
+    }
     if (*nextTimestampToWrite <= *currentTime) {
 
         pSim->writeTimeStep();
@@ -558,7 +568,7 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
 starpu_codelet SWECodelets::incrementTime = []() {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
-    codelet.name="incrementTime";
+    codelet.name = "incrementTime";
     codelet.cpu_funcs[0] = &incrementTime_cpu;
     codelet.nbuffers = 3;
     codelet.modes[0] = STARPU_RW;
