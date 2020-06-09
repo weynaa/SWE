@@ -114,7 +114,7 @@ int main( int argc, char** argv ) {
   #endif
 
   //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
-  int l_numberOfCheckPoints = 20;
+  int l_numberOfCheckPoints = 1;
 
   //! size of a single cell in x- and y-direction
   float l_dX, l_dY;

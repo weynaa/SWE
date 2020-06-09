@@ -49,7 +49,7 @@ class SWE_RadialDamBreakScenario : public SWE_Scenario {
        return ( sqrt( (x-500.f)*(x-500.f) + (y-500.f)*(y-500.f) ) < 100.f ) ? 15.f: 10.0f;
     };
 
-	virtual float endSimulation() { return (float) 15; };
+	virtual float endSimulation() { return (float) 30; };
 
     virtual BoundaryType getBoundaryType(BoundaryEdge edge) { return OUTFLOW; };
 

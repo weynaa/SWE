@@ -17,8 +17,6 @@ struct SWE_StarPU_Sim {
     const size_t nBlocksY;
     const float t_begin;
     const float t_end;
-
-
 private:
     //Layer, X, Y 3D array. Layer is used to have inter-timestep parallelism
     std::vector<std::vector<SWE_StarPU_Block>> blocks;
@@ -46,7 +44,7 @@ public:
                             SWE_Scenario &scenario,
                             const int numberOfCheckpoints = 20)
             : nX(_nX), nY(_nY), nBlocksX(_nBlocksX), nBlocksY(_nBlocksY),
-              t_begin(0), t_end(scenario.endSimulation()) {
+              t_begin(0), t_end(scenario.endSimulation()){
 
         const auto boundsWidth = (scenario.getBoundaryPos(BND_RIGHT) -
                                   scenario.getBoundaryPos(BND_LEFT));
@@ -159,6 +157,7 @@ public:
             for (size_t y = 0; y < writers[x].size(); ++y) {
                 const auto pWriters = &writers[x][y];
                 starpu_task_insert(&SWECodelets::resultWriter,
+                                   (STARPU_PRIORITY),1,
                                    STARPU_VALUE, &pWriters, sizeof(pWriters),
                                    STARPU_R, blocks[x][y].huvData().starpuHandle(),
                                    STARPU_R, blocks[x][y].bStarpuHandle(),
@@ -175,6 +174,7 @@ public:
                 auto blockptr = &blocks[x][y];
 
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
@@ -183,6 +183,7 @@ public:
                                    0);
                 side = BND_RIGHT;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
@@ -191,6 +192,7 @@ public:
                                    0);
                 side = BND_BOTTOM;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
@@ -199,6 +201,7 @@ public:
                                    0);
                 side = BND_TOP;
                 starpu_task_insert(&SWECodelets::updateGhostLayers,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &side, sizeof(side),
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_W, blocks[x][y].boundaryData[side].starpuHandle(),
@@ -214,6 +217,7 @@ public:
             for (size_t y = 0; y < blocks[x].size(); ++y) {
                 const auto blockptr = &blocks[x][y];
                 starpu_task_insert(&SWECodelets::computeNumericalFluxes,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_R, blocks[x][y].huvData().starpuHandle(),
                                    STARPU_R, blocks[x][y].boundaryData[BND_LEFT].starpuHandle(),
@@ -233,6 +237,7 @@ public:
             for (size_t y = 0; y < blocks[x].size(); ++y) {
                 const auto blockptr = &blocks[x][y];
                 starpu_task_insert(&SWECodelets::updateUnknowns,
+                                   STARPU_PRIORITY, 0,
                                    STARPU_VALUE, &blockptr, sizeof(blockptr),
                                    STARPU_RW, blocks[x][y].huvData().starpuHandle(),
                                    STARPU_R, scratchData[x][y],
@@ -250,7 +255,9 @@ public:
 
         const auto pSim = this;
         const auto pCheckpoints = &l_checkPoints;
+
         starpu_task_insert(&SWECodelets::incrementTime,
+                           STARPU_PRIORITY, 3,
                            STARPU_VALUE, &pSim, sizeof(pSim),
                            STARPU_VALUE, &pCheckpoints, sizeof(pCheckpoints),
                            STARPU_RW, spu_timestamp,

@@ -57,12 +57,37 @@
 #include "swe-starpu/SWE_StarPU_Sim.h"
 
 
-static constexpr size_t blocksX = 3;
-static constexpr size_t blocksY = 3;
+static constexpr size_t BLOCKS_X_DEFAULT = 3;
+static constexpr size_t BLOCKS_Y_DEFAULT = 3;
 
 #ifdef ENABLE_OPENCL
 struct starpu_opencl_program opencl_programs;
 #endif
+
+#include <starpu_heteroprio.h>
+
+//This heteroprio scheduler is a buggy mess.. somehow the starpu_sched_max_priority is 0 and therefore always the same prio is chosen.. also it is way slower instead of faster with it on.
+void init_heteroprio(unsigned sched_ctx) {
+    // CPU uses 3 buckets
+    if (starpu_cpu_worker_get_count())
+    {
+        starpu_heteroprio_set_nb_prios(0, STARPU_CPU_IDX, 3);
+        // It uses direct mapping idx => idx
+        unsigned idx;
+        for(idx = 0; idx < 3; ++idx)
+        {
+            starpu_heteroprio_set_mapping(sched_ctx, STARPU_CPU_IDX, idx, idx);
+            starpu_heteroprio_set_faster_arch(sched_ctx, STARPU_CPU_IDX, idx);
+        }
+    }
+    // OpenCL is enabled and uses 2 buckets
+    starpu_heteroprio_set_nb_prios(sched_ctx, STARPU_CUDA_IDX, 1);
+    starpu_heteroprio_set_mapping(sched_ctx, STARPU_CUDA_IDX, 0, 1);
+    // For this bucket OpenCL is the fastest
+    starpu_heteroprio_set_faster_arch(sched_ctx, STARPU_CUDA_IDX, 1);
+    // And CPU is 4 times slower
+    starpu_heteroprio_set_arch_slow_factor(sched_ctx, STARPU_CPU_IDX, 1, 18.0f);
+}
 
 /**
  * Main program for the simulation on a single SWE_WavePropagationBlock.
@@ -76,6 +101,9 @@ int main(int argc, char **argv) {
     args.addOption("grid-size-x", 'x', "Number of cells in x direction");
     args.addOption("grid-size-y", 'y', "Number of cells in y direction");
     args.addOption("output-basepath", 'o', "Output base file name");
+    args.addOption("blocksX", 's', "Number of blocks in x direction", args.Optional, false);
+    args.addOption("blocksY", 't', "Number of blocks in y direction", args.Optional, false);
+    args.addOption("checkpoints", 'n', "Number of blocks checkpoints", args.Optional, false);
 
     tools::Args::Result ret = args.parse(argc, argv);
 
@@ -87,13 +115,16 @@ int main(int argc, char **argv) {
         default:
             break;
     }
-
     //! number of grid cells in x- and y-direction.
     int l_nX, l_nY;
 
-    //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
-    constexpr int l_numberOfCheckPoints = 20;
+    const auto blocksX = args.getArgument<int>("blocksX", BLOCKS_X_DEFAULT);
+    const auto blocksY = args.getArgument<int>("blocksY", BLOCKS_Y_DEFAULT);
 
+
+    //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
+
+    const auto l_numberOfCheckPoints = args.getArgument<int>("checkpoints", 1);
 
     //! l_baseName of the plots.
     std::string l_baseName;
@@ -121,30 +152,48 @@ int main(int argc, char **argv) {
     }
 
 
-    starpu_conf conf = {};
+    starpu_conf conf;
     starpu_conf_init(&conf);
     //conf.ncuda=0;
     //conf.nopencl=0;
+
+    conf.sched_policy_name = "heteroprio";
+    conf.sched_policy_init = &init_heteroprio;
     auto starpuret = starpu_init(&conf);
+    std::cout << "max prio: "<<starpu_sched_get_max_priority()<<'\n';
 #ifdef ENABLE_OPENCL
-   const auto loadRet = starpu_opencl_load_opencl_from_file("opencl/codelets.cl", &opencl_programs, NULL);
-    STARPU_CHECK_RETURN_VALUE(loadRet, "starpu_opencl_load_opencl_from_file");
+    const auto loadRet = starpu_opencl_load_opencl_from_file("opencl/codelets.cl", &opencl_programs, NULL);
+     STARPU_CHECK_RETURN_VALUE(loadRet, "starpu_opencl_load_opencl_from_file");
 #endif
     if (starpuret != 0) {
         std::cerr << "Could not initialize StarPU!\n";
         return 1;
     }
 
+    // Init fancy progressbar
+    tools::ProgressBar progressBar(l_endSimulation);
+
+    // write the output at time zero
+    tools::Logger::logger.printOutputTime((float) 0.);
+    progressBar.update(0.);
     {
         SWE_StarPU_Sim sim{
                 (size_t) l_nX, (size_t) l_nY,
-                blocksX, blocksY,
+                (size_t) blocksX, (size_t) blocksY,
                 l_dX, l_dY,
                 l_baseName,
-                l_scenario
+                l_scenario,
+                l_numberOfCheckPoints
         };
+        tools::Logger::logger.printStartMessage();
+        tools::Logger::logger.initWallClockTime(time(NULL));
+        tools::Logger::logger.resetClockToCurrentTime("Cpu");
         sim.launchTaskGraph();
         starpu_task_wait_for_all();
+        tools::Logger::logger.updateTime("Cpu");
+        tools::Logger::logger.printStatisticsMessage();
+        tools::Logger::logger.printTime("Cpu", "CPU time");
+        tools::Logger::logger.printWallClockTime(time(NULL));
     }
 #ifdef ENABLE_OPENCL
     starpu_opencl_unload_opencl(&opencl_programs);
