@@ -36,8 +36,11 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
         case WALL:
         case OUTFLOW: {
             const bool wall = thisBlock->boundary[side] == WALL;
+
 #ifdef VECTORIZE
-#pragma omp simd
+#pragma omp parallel for simd num_threads(starpu_combined_worker_get_size())
+#else
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
 #endif
             for (size_t j = 0; j < (vertical ? ny : nx); j++) {
                 const size_t outerX = vertical ? 0 : j + 1;
@@ -126,8 +129,12 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
 
 starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
+#ifdef ENABLE_CPU
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &updateGhostLayers_cpu;
+    codelet.type = STARPU_FORKJOIN;
+    codelet.max_parallelism = INT_MAX;
+#endif
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &updateGhostLayers_cuda;
@@ -199,7 +206,9 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
     memset(STARPU_SWE_HUV_MATRIX_GET_HU_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
     memset(STARPU_SWE_HUV_MATRIX_GET_HV_PTR(netUpdates), 0, sizeof(float_type) * nX * nY);
 #ifdef VECTORIZE
-#pragma omp simd
+#pragma omp parallel for simd num_threads(starpu_combined_worker_get_size())
+#else
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
 #endif
     for (size_t y = 0; y < nY; ++y) {
         float maxEdgeSpeed;
@@ -226,7 +235,9 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
 #ifdef VECTORIZE
-#pragma omp simd
+#pragma omp parallel for simd num_threads(starpu_combined_worker_get_size())
+#else
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
 #endif
     for (size_t y = 0; y < nY; ++y) {
         float maxEdgeSpeed;
@@ -252,7 +263,7 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
-
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
     for (size_t y = 0; y < nY; ++y) {
 #ifdef VECTORIZE
 #pragma omp simd
@@ -286,7 +297,9 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         }
     }
 #ifdef VECTORIZE
-#pragma omp simd
+#pragma omp parallel for simd num_threads(starpu_combined_worker_get_size())
+#else
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
 #endif
     for (size_t x = 0; x < nX; ++x) {
         float maxEdgeSpeed;
@@ -315,7 +328,9 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
 #ifdef VECTORIZE
-#pragma omp simd
+#pragma omp parallel for simd num_threads(starpu_combined_worker_get_size())
+#else
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
 #endif
     for (size_t x = 0; x < nX; ++x) {
         float maxEdgeSpeed;
@@ -343,6 +358,7 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
         l_maxWaveSpeed = std::max(l_maxWaveSpeed, maxEdgeSpeed);
     }
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
     for (size_t y = 1; y < nY; ++y) {
 #ifdef VECTORIZE
 #pragma omp simd
@@ -396,6 +412,8 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
 #ifdef ENABLE_CPU
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;
+    codelet.type = STARPU_FORKJOIN;
+    codelet.max_parallelism = INT_MAX;
 #endif
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
@@ -485,7 +503,7 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
 
     const auto nX = STARPU_SWE_HUV_MATRIX_GET_NX(myBlock);
     const auto nY = STARPU_SWE_HUV_MATRIX_GET_NY(myBlock);
-
+#pragma omp parallel for num_threads(starpu_combined_worker_get_size())
     for (size_t y = 0; y < nY; ++y) {
 #pragma omp simd
         for (size_t x = 0; x < nX; ++x) {
@@ -508,6 +526,8 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
 #ifdef ENABLE_CPU
     codelet.where |= STARPU_CPU;
     codelet.cpu_funcs[0] = &updateUnkowns_cpu;
+    codelet.type = STARPU_FORKJOIN;
+    codelet.max_parallelism = INT_MAX;
 #endif
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
