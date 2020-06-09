@@ -393,10 +393,10 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
 
 starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     starpu_codelet codelet = {};
-/*#ifdef ENABLE_CPU
+#ifdef ENABLE_CPU
     codelet.where = STARPU_CPU;
     codelet.cpu_funcs[0] = &computeNumericalFluxes_cpu;
-#endif*/
+#endif
 #ifdef ENABLE_CUDA
     codelet.where |= STARPU_CUDA;
     codelet.cuda_funcs[0] = &computeNumericalFluxes_cuda;
