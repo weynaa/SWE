@@ -16,12 +16,6 @@
 
 #define ENABLE_CPU
 
-starpu_perfmodel myPerfModel = []()noexcept{
-    starpu_perfmodel model = {};
-    model.type=STARPU_HISTORY_BASED;
-    model.symbol="SWE-Performance model";
-    return model;
-}();
 
 void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
     const SWE_StarPU_Block *thisBlock;
@@ -133,6 +127,13 @@ void updateGhostLayers_cpu(void *buffers[], void *cl_arg) {
 #endif
 }
 
+starpu_perfmodel ghostLayersPerf = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="updateGhostLayers";
+    return model;
+}();
+
 starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     starpu_codelet codelet = {};
 #ifdef ENABLE_CPU
@@ -152,7 +153,7 @@ starpu_codelet SWECodelets::updateGhostLayers = []() noexcept {
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
     codelet.name="updateGhostLayers";
-    codelet.model = &myPerfModel;
+    codelet.model = &ghostLayersPerf;
     return codelet;
 }();
 
@@ -169,6 +170,13 @@ void writeResult_cpu(void *buffers[], void *cl_arg) {
 
 }
 
+starpu_perfmodel writeResultModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="writeResult";
+    return model;
+}();
+
 starpu_codelet SWECodelets::resultWriter = []()noexcept {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
@@ -178,7 +186,7 @@ starpu_codelet SWECodelets::resultWriter = []()noexcept {
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
     codelet.name="resultWriter";
-    codelet.model = &myPerfModel;
+    codelet.model = &writeResultModel;
     return codelet;
 }();
 
@@ -415,6 +423,13 @@ void computeNumericalFluxes_cpu(void *buffers[], void *cl_arg) {
         *maxTimestep = std::numeric_limits<float>::max();
 }
 
+starpu_perfmodel computeNumericalFluxesModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="computeNumericalFluxes";
+    return model;
+}();
+
 starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     starpu_codelet codelet = {};
 #ifdef ENABLE_CPU
@@ -443,7 +458,7 @@ starpu_codelet SWECodelets::computeNumericalFluxes = []()noexcept {
     codelet.modes[5] = STARPU_R;
     codelet.modes[6] = STARPU_W;
     codelet.modes[7] = STARPU_REDUX;
-    codelet.model = &myPerfModel;
+    codelet.model = &computeNumericalFluxesModel;
     return codelet;
 }();
 
@@ -453,6 +468,13 @@ void variableMin_cpu(void *buffers[], void *cl_args) {
     float *b = (float *) STARPU_VARIABLE_GET_PTR(buffers[1]);
     *a = std::min(*a, *b);
 }
+
+starpu_perfmodel variableMinModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="variableMin";
+    return model;
+}();
 
 
 starpu_codelet SWECodelets::variableMin = []()noexcept {
@@ -473,7 +495,7 @@ starpu_codelet SWECodelets::variableMin = []()noexcept {
     codelet.nbuffers = 2;
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
-    codelet.model = &myPerfModel;
+    codelet.model = &variableMinModel;
     return codelet;
 }();
 
@@ -481,6 +503,13 @@ void variableSetInf_cpu(void *buffers[], void *cl_args) {
     float *value = (float *) STARPU_VARIABLE_GET_PTR(buffers[0]);
     *value = std::numeric_limits<float>::infinity();
 }
+
+starpu_perfmodel variableSetInfModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="variableSetInf";
+    return model;
+}();
 
 starpu_codelet SWECodelets::variableSetInf = []()noexcept {
     starpu_codelet codelet = {};
@@ -499,7 +528,7 @@ starpu_codelet SWECodelets::variableSetInf = []()noexcept {
     codelet.name="variableSetInf";
     codelet.nbuffers = 1;
     codelet.modes[0] = STARPU_W;
-    codelet.model = &myPerfModel;
+    codelet.model = &variableSetInfModel;
     return codelet;
 }();
 
@@ -532,6 +561,13 @@ void updateUnkowns_cpu(void *buffers[], void *cl_args) {
     }
 }
 
+starpu_perfmodel updateUnknownsModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="updateUnknowns";
+    return model;
+}();
+
 starpu_codelet SWECodelets::updateUnknowns = []() {
     starpu_codelet codelet = {};
 #ifdef ENABLE_CPU
@@ -555,7 +591,7 @@ starpu_codelet SWECodelets::updateUnknowns = []() {
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_R;
-    codelet.model = &myPerfModel;
+    codelet.model = &updateUnknownsModel;
     return codelet;
 }();
 
@@ -587,6 +623,13 @@ void incrementTime_cpu(void *buffers[], void *cl_args) {
     pSim->runTimestep();
 }
 
+starpu_perfmodel incrementTimeModel = []()noexcept{
+    starpu_perfmodel model = {};
+    model.type=STARPU_HISTORY_BASED;
+    model.symbol="incrementTime";
+    return model;
+}();
+
 starpu_codelet SWECodelets::incrementTime = []() {
     starpu_codelet codelet = {};
     codelet.where = STARPU_CPU;
@@ -596,6 +639,6 @@ starpu_codelet SWECodelets::incrementTime = []() {
     codelet.modes[0] = STARPU_RW;
     codelet.modes[1] = STARPU_R;
     codelet.modes[2] = STARPU_RW;
-    codelet.model = &myPerfModel;
+    codelet.model = &incrementTimeModel;
     return codelet;
 }();

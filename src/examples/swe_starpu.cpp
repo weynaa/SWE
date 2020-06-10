@@ -57,14 +57,12 @@
 #include "swe-starpu/SWE_StarPU_Sim.h"
 
 
-static constexpr size_t BLOCKS_X_DEFAULT = 3;
-static constexpr size_t BLOCKS_Y_DEFAULT = 3;
+static constexpr size_t BLOCKS_X_DEFAULT = 2;
+static constexpr size_t BLOCKS_Y_DEFAULT = 2;
 
 #ifdef ENABLE_OPENCL
 struct starpu_opencl_program opencl_programs;
 #endif
-
-#include <starpu_heteroprio.h>
 
 //This heteroprio scheduler is a buggy mess.. somehow the starpu_sched_max_priority is 0 and therefore always the same prio is chosen.. also it is way slower instead of faster with it on.
 void init_heteroprio(unsigned sched_ctx) {
@@ -124,7 +122,7 @@ int main(int argc, char **argv) {
 
     //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
 
-    const auto l_numberOfCheckPoints = args.getArgument<int>("checkpoints", 1);
+    const auto l_numberOfCheckPoints = args.getArgument<int>("checkpoints", 10);
 
     //! l_baseName of the plots.
     std::string l_baseName;
