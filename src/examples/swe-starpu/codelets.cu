@@ -350,7 +350,7 @@ void computeNumericalFluxes_cuda(void *buffers[], void *cl_arg) {
 
 __global__
 void variableMin_cuda_kernel(float *a, float *b) {
-    *a = std::min(*a, *b);
+    *a = fmin(*a, *b);
 }
 
 void variableMin_cuda(void *buffers[], void *cl_args) {

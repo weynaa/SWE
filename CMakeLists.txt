@@ -74,7 +74,7 @@ target_sources(swe-single-node
     
 target_link_libraries(swe-single-node PUBLIC swe)
 
-pkg_check_modules(STARPU REQUIRED starpu-1.3 starpumpi-1.3)
+pkg_check_modules(STARPU REQUIRED starpu-1.3)
 if (STARPU_FOUND)
     add_executable(swe-starpu
             src/examples/swe_starpu.cpp

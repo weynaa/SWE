@@ -384,10 +384,12 @@ int main( int argc, char** argv ) {
           0);
   //
   // Write zero time step
-  l_writer->writeTimeStep( l_waveBlock->getWaterHeight(),
+if(!getenv("SWE_DISABLE_WRITE")){
+ l_writer->writeTimeStep( l_waveBlock->getWaterHeight(),
                           l_waveBlock->getDischarge_hu(),
                           l_waveBlock->getDischarge_hv(),
                           (float) 0.);
+}
   /**
    * Simulation.
    */
@@ -466,10 +468,12 @@ int main( int argc, char** argv ) {
     progressBar.update(l_t);
 
     // write output
+if(!getenv("SWE_DISABLE_WRITE")){
     l_writer->writeTimeStep( l_waveBlock->getWaterHeight(),
                             l_waveBlock->getDischarge_hu(),
                             l_waveBlock->getDischarge_hv(),
                             l_t);
+}
   }
 
   /**

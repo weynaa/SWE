@@ -114,7 +114,7 @@ int main( int argc, char** argv ) {
   #endif
 
   //! number of checkpoints for visualization (at each checkpoint in time, an output file is written).
-  int l_numberOfCheckPoints = 1;
+  int l_numberOfCheckPoints = 10;
 
   //! size of a single cell in x- and y-direction
   float l_dX, l_dY;
@@ -169,12 +169,13 @@ int main( int argc, char** argv ) {
           0);
           
   // Write zero time step
+if(!getenv("SWE_DISABLE_WRITE")){
   l_writer->writeTimeStep( l_waveBlock->getWaterHeight(),
                           l_waveBlock->getDischarge_hu(),
                           l_waveBlock->getDischarge_hv(),
                           (float) 0.);
 
-
+}
   /**
    * Simulation.
    */
@@ -233,10 +234,12 @@ int main( int argc, char** argv ) {
     progressBar.update(l_t);
 
     // write output
+if(!getenv("SWE_DISABLE_WRITE")){
     l_writer->writeTimeStep(l_waveBlock->getWaterHeight(),
                             l_waveBlock->getDischarge_hu(),
                             l_waveBlock->getDischarge_hv(),
                             l_t);
+}
   }
 
   /**

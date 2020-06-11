@@ -11,7 +11,7 @@
 #ifdef ENABLE_OPENCL
 #define STAPUR_USE_OPENCL
 #endif
-#include <starpu/1.3/starpu.h>
-#include <starpu/1.3/starpu_heteroprio.h>
+#include <starpu.h>
+#include <starpu_heteroprio.h>
 #endif
 #endif //SWE_STARPUCOMMON_H

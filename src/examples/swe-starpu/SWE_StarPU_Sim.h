@@ -153,6 +153,9 @@ public:
     }
 
     void writeTimeStep() {
+	if(getenv("SWE_DISABLE_WRITE")){
+		return;	
+	}
         for (size_t x = 0; x < writers.size(); ++x) {
             for (size_t y = 0; y < writers[x].size(); ++y) {
                 const auto pWriters = &writers[x][y];
