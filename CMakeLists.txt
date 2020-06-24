@@ -96,6 +96,7 @@ if (STARPU_FOUND)
         target_compile_options(swe-starpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr >)
     endif()
     if(ENABLE_OPENCL)
+        message(WARINING "OpenCL is still buggy/experimental")
         target_compile_definitions(swe-starpu PUBLIC ENABLE_OPENCL)
         target_link_libraries(swe-starpu PRIVATE OpenCL::OpenCL)
         add_custom_command(TARGET swe-starpu POST_BUILD
